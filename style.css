@@ -1,225 +1,461 @@
-/* ─────────────────────────────────────────────────────────
-   TutaMaps — Base Styles
-   ───────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════
+   TutaMaps — Complete Stylesheet
+   KIT Coimbatore · Neural Hydras
+   ═══════════════════════════════════════════════════════════ */
 
-/* Reset & box model */
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+/* ── Reset & Base ──────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* Variables */
 :root {
-  --color-primary:    #2e7d32; /* forest green */
-  --color-primary-dk: #1b5e20;
-  --color-secondary:  #f5f5f5;
-  --color-bg:         #ffffff;
-  --color-text:       #212121;
-  --color-muted:      #757575;
-  --color-border:     #e0e0e0;
-  --color-error:      #c62828;
-  --color-success:    #2e7d32;
-
-  --shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.12);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
-
-  --radius:    8px;
-  --panel-w:   320px;
-  --header-h:  60px;
+  --green:        #2e7d32;
+  --green-dk:     #1b5e20;
+  --green-lt:     #e8f5e9;
+  --green-mid:    #43a047;
+  --red:          #c62828;
+  --red-lt:       #ffebee;
+  --orange:       #e65100;
+  --orange-lt:    #fff3e0;
+  --blue:         #1565c0;
+  --blue-lt:      #e3f2fd;
+  --yellow:       #f9a825;
+  --bg:           #f4f6f8;
+  --card:         #ffffff;
+  --text:         #212121;
+  --text-muted:   #757575;
+  --border:       #e0e0e0;
+  --shadow:       0 2px 8px rgba(0,0,0,0.10);
+  --shadow-md:    0 4px 16px rgba(0,0,0,0.13);
+  --radius:       10px;
+  --header-h:     58px;
+  --panel-w:      330px;
 }
 
-/* Base */
 html, body {
   height: 100%;
   font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-  font-size: 16px;
-  color: var(--color-text);
-  background: var(--color-bg);
+  font-size: 15px;
+  color: var(--text);
+  background: var(--bg);
 }
 
-/* ── Header ───────────────────────────────────────────── */
+/* ── Header ────────────────────────────────────────────────── */
 .site-header {
   display: flex;
   align-items: center;
-  gap: 16px;
+  justify-content: space-between;
   height: var(--header-h);
-  padding: 0 20px;
-  background: var(--color-primary);
+  padding: 0 18px;
+  background: var(--green);
   color: #fff;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
   position: relative;
-  z-index: 1000;
+  z-index: 1100;
+  gap: 12px;
 }
 
-.logo {
+.header-left {
   display: flex;
   align-items: center;
+  gap: 10px;
+}
+
+.logo-icon { font-size: 1.7rem; }
+
+.logo-text {
+  display: block;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.3px;
+}
+
+.logo-sub {
+  display: block;
+  font-size: 0.7rem;
+  opacity: 0.8;
+  letter-spacing: 0.2px;
+}
+
+/* Mode toggle buttons */
+.mode-toggles {
+  display: flex;
   gap: 8px;
 }
 
-.logo-icon {
-  font-size: 1.5rem;
+.mode-btn {
+  padding: 6px 13px;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-radius: 20px;
+  background: transparent;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.1s;
+  white-space: nowrap;
 }
 
-.logo-text {
-  font-size: 1.3rem;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+.mode-btn:hover {
+  background: rgba(255,255,255,0.15);
+  border-color: rgba(255,255,255,0.7);
 }
 
-.tagline {
-  font-size: 0.85rem;
-  opacity: 0.85;
+.mode-btn.active {
+  background: #fff;
+  color: var(--green-dk);
+  border-color: #fff;
 }
 
-/* ── Main layout ──────────────────────────────────────── */
+.mode-btn:active { transform: scale(0.96); }
+
+/* ── Main layout ───────────────────────────────────────────── */
 .layout {
   display: flex;
   height: calc(100vh - var(--header-h));
+  overflow: hidden;
 }
 
-/* ── Search panel ─────────────────────────────────────── */
-.search-panel {
+/* ── Side panel ────────────────────────────────────────────── */
+.side-panel {
   width: var(--panel-w);
   min-width: var(--panel-w);
-  padding: 24px 20px;
-  background: var(--color-bg);
-  border-right: 1px solid var(--color-border);
-  box-shadow: var(--shadow-md);
+  height: 100%;
+  overflow-y: auto;
+  background: var(--bg);
+  border-right: 1px solid var(--border);
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  overflow-y: auto;
+  gap: 12px;
   z-index: 500;
 }
 
-.panel-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--color-primary-dk);
+/* Scrollbar styling */
+.side-panel::-webkit-scrollbar { width: 5px; }
+.side-panel::-webkit-scrollbar-track { background: transparent; }
+.side-panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* ── Cards ─────────────────────────────────────────────────── */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 14px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
 }
 
-/* Input groups */
+.card.hidden { display: none; }
+
+.card-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--green-dk);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--green-lt);
+}
+
+/* ── Inputs ────────────────────────────────────────────────── */
 .input-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
+  margin-bottom: 10px;
+  position: relative;
 }
 
 .input-group label {
-  font-size: 0.8rem;
-  font-weight: 600;
+  font-size: 0.75rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  color: var(--color-muted);
+  color: var(--text-muted);
+}
+
+.input-row {
+  display: flex;
+  gap: 6px;
 }
 
 .input-group input {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--color-border);
+  flex: 1;
+  padding: 9px 11px;
+  border: 1.5px solid var(--border);
   border-radius: var(--radius);
-  font-size: 0.95rem;
-  color: var(--color-text);
-  background: var(--color-secondary);
+  font-size: 0.9rem;
+  color: var(--text);
+  background: #fafafa;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .input-group input:focus {
   outline: none;
-  border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.15);
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(46,125,50,0.12);
   background: #fff;
 }
 
-/* Buttons */
-.btn-primary,
-.btn-secondary {
+.icon-btn {
+  padding: 0 10px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  background: #fafafa;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.2s;
+}
+
+.icon-btn:hover { background: var(--green-lt); border-color: var(--green); }
+
+/* Autocomplete suggestions */
+.suggestions {
+  list-style: none;
+  position: absolute;
+  top: 100%;
+  left: 0; right: 0;
+  background: #fff;
+  border: 1.5px solid var(--green);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  box-shadow: var(--shadow-md);
+  z-index: 2000;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.suggestions li {
+  padding: 9px 12px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s;
+}
+
+.suggestions li:last-child { border-bottom: none; }
+.suggestions li:hover { background: var(--green-lt); }
+.suggestions.hidden { display: none; }
+
+/* ── Buttons ───────────────────────────────────────────────── */
+.btn-primary, .btn-secondary {
   width: 100%;
-  padding: 11px;
+  padding: 10px;
   border: none;
   border-radius: var(--radius);
-  font-size: 0.95rem;
-  font-weight: 600;
+  font-size: 0.92rem;
+  font-weight: 700;
   cursor: pointer;
   transition: background 0.2s, transform 0.1s;
+  margin-bottom: 7px;
 }
 
 .btn-primary {
-  background: var(--color-primary);
+  background: var(--green);
   color: #fff;
 }
 
-.btn-primary:hover {
-  background: var(--color-primary-dk);
-}
-
-.btn-primary:active {
-  transform: scale(0.98);
-}
+.btn-primary:hover  { background: var(--green-dk); }
+.btn-primary:active { transform: scale(0.98); }
 
 .btn-secondary {
-  background: var(--color-secondary);
-  color: var(--color-muted);
-  border: 1px solid var(--color-border);
+  background: #f5f5f5;
+  color: var(--text-muted);
+  border: 1.5px solid var(--border);
 }
 
-.btn-secondary:hover {
-  background: var(--color-border);
-  color: var(--color-text);
-}
+.btn-secondary:hover { background: #eeeeee; color: var(--text); }
 
-/* Route info box */
+/* ── Route info box ────────────────────────────────────────── */
 .route-info {
-  font-size: 0.9rem;
-  color: var(--color-muted);
+  font-size: 0.85rem;
+  color: var(--text-muted);
   line-height: 1.6;
-  padding: 12px;
+  padding: 10px 12px;
   border-radius: var(--radius);
-  background: var(--color-secondary);
-  border: 1px solid var(--color-border);
-  min-height: 60px;
+  background: #fafafa;
+  border: 1px solid var(--border);
+  min-height: 40px;
+  word-break: break-word;
 }
 
-.route-info.error {
-  color: var(--color-error);
-  background: #ffebee;
-  border-color: #ef9a9a;
+.route-info.error   { color: var(--red);    background: var(--red-lt);    border-color: #ef9a9a; }
+.route-info.success { color: var(--green);  background: var(--green-lt);  border-color: #a5d6a7; }
+.route-info.loading { color: var(--blue);   background: var(--blue-lt);   border-color: #90caf9; }
+
+/* ── Walk Score Card ───────────────────────────────────────── */
+.score-big {
+  font-size: 3.2rem;
+  font-weight: 900;
+  text-align: center;
+  color: var(--green);
+  line-height: 1;
+  margin: 6px 0 2px;
 }
 
-.route-info.success {
-  color: var(--color-success);
-  background: #e8f5e9;
-  border-color: #a5d6a7;
+.score-label {
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-bottom: 14px;
 }
 
-/* ── Map ──────────────────────────────────────────────── */
+.score-bars { display: flex; flex-direction: column; gap: 9px; }
+
+.score-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+}
+
+.score-row > span:first-child {
+  width: 72px;
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
+.bar-track {
+  flex: 1;
+  height: 8px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  width: 0%;
+  transition: width 0.8s ease;
+}
+
+.shade-bar  { background: var(--green-mid); }
+.light-bar  { background: var(--yellow); }
+.crowd-bar  { background: var(--blue); }
+.safety-bar { background: var(--orange); }
+
+.bar-val {
+  width: 34px;
+  text-align: right;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+/* Score colour states */
+.score-big.good    { color: var(--green); }
+.score-big.average { color: var(--orange); }
+.score-big.poor    { color: var(--red); }
+
+/* Route stats */
+.route-stats {
+  margin-top: 12px;
+  padding: 10px;
+  background: var(--green-lt);
+  border-radius: var(--radius);
+  font-size: 0.82rem;
+  line-height: 1.8;
+  color: var(--green-dk);
+  font-weight: 600;
+}
+
+/* ── Quick route buttons ───────────────────────────────────── */
+.quick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.quick-btn {
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.quick-btn:hover {
+  background: var(--green-lt);
+  border-color: var(--green);
+  color: var(--green-dk);
+}
+
+/* ── Legend ────────────────────────────────────────────────── */
+.legend-list { display: flex; flex-direction: column; gap: 7px; }
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.83rem;
+  font-weight: 500;
+}
+
+.dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 2px solid rgba(0,0,0,0.15);
+}
+
+.dot.green  { background: #2e7d32; }
+.dot.red    { background: #c62828; }
+.dot.orange { background: #e65100; }
+.dot.blue   { background: #1565c0; }
+.dot.yellow { background: #f9a825; }
+
+/* ── Map ───────────────────────────────────────────────────── */
 #map {
   flex: 1;
   height: 100%;
+  z-index: 1;
 }
 
-/* ── Responsive (mobile) ─────────────────────────────── */
-@media (max-width: 640px) {
-  .layout {
-    flex-direction: column;
-  }
+/* Hide default Leaflet routing panel (we have our own) */
+.leaflet-routing-container { display: none !important; }
 
-  .search-panel {
+/* ── Loading spinner overlay on map ───────────────────────── */
+.map-loader {
+  position: absolute;
+  top: 50%;
+  left: calc(50% + var(--panel-w) / 2);
+  transform: translate(-50%, -50%);
+  background: rgba(255,255,255,0.92);
+  padding: 16px 24px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  font-weight: 700;
+  color: var(--green-dk);
+  font-size: 0.95rem;
+  z-index: 999;
+  display: none;
+}
+
+.map-loader.visible { display: block; }
+
+/* ── Responsive ────────────────────────────────────────────── */
+@media (max-width: 680px) {
+  .layout { flex-direction: column; }
+
+  .side-panel {
     width: 100%;
     min-width: unset;
+    height: auto;
+    max-height: 50vh;
     border-right: none;
-    border-bottom: 1px solid var(--color-border);
-    box-shadow: var(--shadow-sm);
+    border-bottom: 1px solid var(--border);
   }
 
-  #map {
-    flex: 1;
-    min-height: 300px;
-  }
+  #map { flex: 1; min-height: 50vh; }
 
-  .tagline {
-    display: none;
-  }
+  .mode-toggles { gap: 5px; }
+  .mode-btn { padding: 5px 8px; font-size: 0.72rem; }
+  .logo-sub { display: none; }
 }

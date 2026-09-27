@@ -3,74 +3,130 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TutaMaps — Walk the Better Way</title>
+    <title>TutaMaps — Intelligent Pedestrian Routing</title>
 
-    <!-- Leaflet CSS (map library, free & no API key needed) -->
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-      crossorigin=""
-    />
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <!-- Leaflet Routing Machine CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
 
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
 
-    <!-- ── Header ─────────────────────────────────────────── -->
+    <!-- ── Header ─────────────────────────────────────── -->
     <header class="site-header">
-      <div class="logo">
+      <div class="header-left">
         <span class="logo-icon">🗺️</span>
-        <span class="logo-text">TutaMaps</span>
+        <div>
+          <span class="logo-text">TutaMaps</span>
+          <span class="logo-sub">Neural Hydras · KIT Coimbatore</span>
+        </div>
       </div>
-      <p class="tagline">Walk the safer, cooler route.</p>
+      <div class="mode-toggles">
+        <button id="btn-normal" class="mode-btn active" title="Normal Mode">🚶 Normal</button>
+        <button id="btn-heat"   class="mode-btn"        title="Maximise shade on hot days">☀️ Heat Mode</button>
+        <button id="btn-night"  class="mode-btn"        title="Lit & crowded roads at night">🌙 Night Mode</button>
+      </div>
     </header>
 
-    <!-- ── Main layout ────────────────────────────────────── -->
+    <!-- ── Layout ─────────────────────────────────────── -->
     <main class="layout">
 
-      <!-- Search panel -->
-      <section class="search-panel" aria-label="Route search">
-        <h2 class="panel-title">Find your route</h2>
+      <!-- LEFT PANEL -->
+      <aside class="side-panel">
 
-        <div class="input-group">
-          <label for="start-input">Start</label>
-          <input
-            id="start-input"
-            type="text"
-            placeholder="e.g. Central Park, New York"
-            autocomplete="off"
-          />
-        </div>
+        <!-- Search -->
+        <section class="card" id="search-card">
+          <h2 class="card-title">🔍 Find Your Route</h2>
 
-        <div class="input-group">
-          <label for="end-input">End</label>
-          <input
-            id="end-input"
-            type="text"
-            placeholder="e.g. Brooklyn Bridge"
-            autocomplete="off"
-          />
-        </div>
+          <div class="input-group">
+            <label for="start-input">📍 Start</label>
+            <div class="input-row">
+              <input id="start-input" type="text" placeholder="e.g. KIT College Gate" autocomplete="off" />
+              <button class="icon-btn" id="my-location-btn" title="Use my location">📌</button>
+            </div>
+            <ul class="suggestions" id="start-suggestions"></ul>
+          </div>
 
-        <button id="find-route-btn" class="btn-primary">Find Route</button>
-        <button id="clear-btn" class="btn-secondary">Clear</button>
+          <div class="input-group">
+            <label for="end-input">🏁 Destination</label>
+            <input id="end-input" type="text" placeholder="e.g. Coimbatore Airport" autocomplete="off" />
+            <ul class="suggestions" id="end-suggestions"></ul>
+          </div>
 
-        <!-- Results area (populated by app.js) -->
-        <div id="route-info" class="route-info" aria-live="polite"></div>
-      </section>
+          <button id="find-route-btn" class="btn-primary">Find Safe Route →</button>
+          <button id="clear-btn"      class="btn-secondary">✕ Clear</button>
 
-      <!-- Map container -->
-      <div id="map" aria-label="Interactive walking map"></div>
+          <div id="route-info" class="route-info" aria-live="polite"></div>
+        </section>
+
+        <!-- Walk Score -->
+        <section class="card hidden" id="score-card">
+          <h2 class="card-title">📊 Walk Score</h2>
+          <div class="score-big" id="score-number">--</div>
+          <div class="score-label" id="score-label">--</div>
+          <div class="score-bars">
+            <div class="score-row">
+              <span>🌿 Shade</span>
+              <div class="bar-track"><div class="bar-fill shade-bar" id="bar-shade"></div></div>
+              <span class="bar-val" id="val-shade">--%</span>
+            </div>
+            <div class="score-row">
+              <span>💡 Lighting</span>
+              <div class="bar-track"><div class="bar-fill light-bar" id="bar-light"></div></div>
+              <span class="bar-val" id="val-light">--%</span>
+            </div>
+            <div class="score-row">
+              <span>👥 Crowd</span>
+              <div class="bar-track"><div class="bar-fill crowd-bar" id="bar-crowd"></div></div>
+              <span class="bar-val" id="val-crowd">--%</span>
+            </div>
+            <div class="score-row">
+              <span>🛡️ Safety</span>
+              <div class="bar-track"><div class="bar-fill safety-bar" id="bar-safety"></div></div>
+              <span class="bar-val" id="val-safety">--%</span>
+            </div>
+          </div>
+          <div class="route-stats" id="route-stats"></div>
+        </section>
+
+        <!-- Quick destinations around KIT -->
+        <section class="card" id="quick-card">
+          <h2 class="card-title">⭐ Quick Routes from KIT</h2>
+          <div class="quick-list">
+            <button class="quick-btn" data-dest="Coimbatore Airport, Peelamedu">✈️ Coimbatore Airport</button>
+            <button class="quick-btn" data-dest="Gandhipuram Bus Stand, Coimbatore">🚌 Gandhipuram Bus Stand</button>
+            <button class="quick-btn" data-dest="Ukkadam Bus Stand, Coimbatore">🚌 Ukkadam Bus Stand</button>
+            <button class="quick-btn" data-dest="RS Puram, Coimbatore">🛍️ RS Puram</button>
+            <button class="quick-btn" data-dest="Fun Republic Mall, Coimbatore">🛒 Fun Republic Mall</button>
+            <button class="quick-btn" data-dest="CODISSIA Trade Fair Complex, Coimbatore">🏢 CODISSIA</button>
+          </div>
+        </section>
+
+        <!-- Legend -->
+        <section class="card" id="legend-card">
+          <h2 class="card-title">🗺️ Map Legend</h2>
+          <div class="legend-list">
+            <div class="legend-row"><span class="dot green"></span> TutaMaps Safe Route</div>
+            <div class="legend-row"><span class="dot red"></span> Shortest (Risky) Route</div>
+            <div class="legend-row"><span class="dot orange"></span> Start Point</div>
+            <div class="legend-row"><span class="dot blue"></span> Destination</div>
+            <div class="legend-row"><span class="dot yellow"></span> KIT Campus</div>
+          </div>
+        </section>
+
+      </aside>
+
+      <!-- MAP -->
+      <div id="map" aria-label="TutaMaps interactive map"></div>
 
     </main>
 
     <!-- Leaflet JS -->
-    <script
-      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLs="
-      crossorigin=""
-    ></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <!-- Leaflet Routing Machine -->
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
 
     <script src="app.js"></script>
   </body>
