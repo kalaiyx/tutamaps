@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TutaMaps — Intelligent Walking Navigation & Live Routes</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+
+    <!-- ── Header with Upward Mode Toggles ─────────────── -->
+    <header class="site-header">
+      <div class="header-left">
+        <span class="logo-icon">🗺️</span>
+        <div>
+          <span class="logo-text">TutaMaps</span>
+          <span class="logo-sub">Pedestrian Navigation · KIT Coimbatore</span>
+        </div>
+      </div>
+
+      <!-- Modes neatly shown upward in header -->
+      <div class="mode-toggles" role="group" aria-label="Walking Comfort Mode">
+        <button id="btn-normal" class="mode-btn active" title="Balanced walk with sidewalks and crossings">
+          🚶 Normal
+        </button>
+        <button id="btn-heat" class="mode-btn" title="Maximise tree shade & hydration points on hot days">
+          ☀️ Heat Mode
+        </button>
+        <button id="btn-night" class="mode-btn" title="Prioritise bright streetlights & busy roads at night">
+          🌙 Night Mode
+        </button>
+      </div>
+
+      <div class="header-right">
+        <button id="help-btn" class="help-btn" title="How TutaMaps Works & Guide">
+          ❓ Guide
+        </button>
+      </div>
+    </header>
+
+    <!-- ── Main App Layout ─────────────────────────────── -->
+    <main class="layout">
+
+      <!-- LEFT SIDEBAR / FLOATING NAVIGATION DRAWER -->
+      <aside class="side-panel">
+
+        <!-- ── STATE 1: Clean Initial Single Search Bar ── -->
+        <div class="panel-card single-search-card" id="single-search-box">
+          <div class="search-bar-inner">
+            <span class="search-magnifier">🔍</span>
+            <input
+              id="main-search-input"
+              type="text"
+              placeholder="Search destination, street or shop..."
+              autocomplete="off"
+            />
+            <button id="open-directions-btn" class="directions-pill-btn" title="Open Start & Destination inputs">
+              🧭 Directions
+            </button>
+          </div>
+          <ul class="suggestions hidden" id="main-suggestions"></ul>
+
+          <!-- Neatly arranged Quick Amenity Pills -->
+          <div class="amenity-pills-row">
+            <span class="pills-title">Nearby:</span>
+            <button class="pill-filter-btn" data-type="hospital">🏥 Hospitals</button>
+            <button class="pill-filter-btn" data-type="water">🚰 Water</button>
+            <button class="pill-filter-btn" data-type="toilet">🚻 Restrooms</button>
+            <button class="pill-filter-btn" data-type="shop">🏪 Shops</button>
+            <button class="pill-filter-btn" data-type="pharmacy">💊 Pharmacy</button>
+          </div>
+
+          <!-- Quick Presets -->
+          <div class="preset-chips-wrap">
+            <span class="preset-title">Popular in Coimbatore:</span>
+            <div class="preset-scroll">
+              <button class="chip-preset" data-dest="KIT College Gate, Kannampalayam">🎓 KIT Gate</button>
+              <button class="chip-preset" data-dest="Sulur Government Hospital, Sulur">🏥 Sulur Hospital</button>
+              <button class="chip-preset" data-dest="KR Bakes, Trichy Road, Sulur">🏪 KR Bakes</button>
+              <button class="chip-preset" data-dest="Apollo Pharmacy, Sulur">💊 Apollo Pharmacy</button>
+              <button class="chip-preset" data-dest="Coimbatore Airport, Peelamedu">✈️ Airport</button>
+              <button class="chip-preset" data-dest="Fun Republic Mall, Peelamedu">🛍️ Fun Mall</button>
+              <button class="chip-preset" data-dest="Singanallur Bus Stand, Coimbatore">🚍 Singanallur</button>
+              <button class="chip-preset" data-dest="Coimbatore Railway Junction">🚉 Railway Station</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── STATE 2: Expanded Start & End Directions Form (Appears after touching/clicking) ── -->
+        <div class="panel-card directions-input-card hidden" id="directions-form-box">
+          <div class="directions-header-row">
+            <button id="back-to-search-btn" class="back-link-btn" title="Back to single search bar">
+              ← Back
+            </button>
+            <span class="directions-heading">Walking Directions</span>
+            <button id="clear-inputs-btn" class="clear-icon-btn" title="Clear inputs">✕</button>
+          </div>
+
+          <div class="search-inputs-wrap">
+            <div class="input-line">
+              <span class="input-dot start-dot"></span>
+              <input id="start-input" type="text" placeholder="Start location (or My Location)" autocomplete="off" />
+              <button class="icon-action-btn" id="my-location-btn" title="Use current GPS location">📍</button>
+            </div>
+            <ul class="suggestions hidden" id="start-suggestions"></ul>
+
+            <div class="swap-divider">
+              <div class="divider-line"></div>
+              <button id="swap-btn" class="swap-icon-btn" title="Swap Start & Destination">⇅</button>
+              <div class="divider-line"></div>
+            </div>
+
+            <div class="input-line">
+              <span class="input-dot end-dot"></span>
+              <input id="end-input" type="text" placeholder="Destination address, shop or hospital..." autocomplete="off" />
+            </div>
+            <ul class="suggestions hidden" id="end-suggestions"></ul>
+          </div>
+
+          <button id="find-route-btn" class="btn-navigate">
+            Find Best Routes & Compare →
+          </button>
+
+          <div id="route-info" class="route-info" aria-live="polite">
+            Enter start & destination, or click 2 points on the map.
+          </div>
+        </div>
+
+        <!-- ── STATE 3: Route Comparison Cards & Start Navigation ── -->
+        <div class="panel-card route-comparison-card hidden" id="compare-card">
+          <div class="section-title-row">
+            <h3 class="section-title" id="comparison-heading">Routes Comparison</h3>
+            <span class="badge-select-hint">Click card to choose</span>
+          </div>
+
+          <!-- Dynamic Candidate Routes List -->
+          <div class="route-cards-list" id="route-cards-container">
+            <!-- Dynamically populated candidate routes with scores & time -->
+          </div>
+
+          <!-- Prominent "Start" Button (Like Google Maps) -->
+          <button id="start-navigation-btn" class="btn-start-nav">
+            <span class="start-icon">▶</span>
+            <div class="start-label-wrap">
+              <span class="start-main-title">Start Walking</span>
+              <span class="start-sub-title">Real GPS live tracking & location updates</span>
+            </div>
+          </button>
+
+          <!-- Walker's Smart Advisory & Safety Tips -->
+          <div class="smart-advice-box" id="smart-advice-box">
+            <div class="smart-advice-header">
+              <span class="smart-advice-bulb">💡</span>
+              <span>Walker's Advisory & Tips</span>
+            </div>
+            <div class="advice-tips-list" id="advice-tips-list">
+              <!-- Dynamically populated advice tips -->
+            </div>
+          </div>
+
+          <div class="route-insight-box" id="comparison-banner">
+            💡 <b>Route Comparison:</b> Comparing multiple candidate routes for safety, shade canopy, and walking comfort.
+          </div>
+        </div>
+
+        <!-- ── STATE 4: Live Walking Navigation Sheet (Real GPS Tracking) ── -->
+        <div class="panel-card live-nav-card hidden" id="live-nav-card">
+          <div class="live-nav-header">
+            <div class="live-pulse-badge" id="live-gps-badge">
+              <span class="live-red-dot"></span> LIVE GPS TRACKING
+            </div>
+            <button id="exit-nav-btn" class="exit-nav-btn" title="Stop navigation">✕ Stop</button>
+          </div>
+
+          <div class="live-progress-hero">
+            <div class="live-time-remaining" id="live-time-remain">-- min to go</div>
+            <div class="live-dist-remaining" id="live-dist-remain">-- km left · Arrival ~--:--</div>
+            <div class="live-gps-status" id="live-gps-status">📍 Connecting to real GPS...</div>
+          </div>
+
+          <div class="live-current-place-card">
+            <span class="live-place-icon">📍</span>
+            <div class="live-place-info">
+              <div class="live-place-label">Current Location / Street:</div>
+              <div class="live-place-name" id="live-current-street">College Road</div>
+              <div class="live-place-landmark" id="live-current-landmark">Waiting for user movement</div>
+            </div>
+          </div>
+
+          <div class="live-next-turn-card" id="live-next-turn-card">
+            <div class="next-turn-icon" id="live-turn-icon">↰</div>
+            <div class="next-turn-text">
+              <div class="next-turn-dist" id="live-turn-dist">Next step</div>
+              <div class="next-turn-action" id="live-turn-action">Follow indicated route</div>
+            </div>
+          </div>
+
+          <!-- Step navigation controls (Real GPS movement + manual step preview) -->
+          <div class="live-controls-row">
+            <button id="prev-step-btn" class="nav-control-btn" title="View previous walking step">◀ Prev Step</button>
+            <button id="next-step-btn" class="nav-control-btn" title="View next walking step">Next Step ▶</button>
+            <button id="recenter-walker-btn" class="nav-control-btn" title="Center map on your real location">🎯 My Location</button>
+          </div>
+
+          <!-- Live Route Advice in Navigation -->
+          <div class="live-advice-card" id="live-advice-card">
+            <span class="live-advice-icon">💡</span>
+            <span class="live-advice-text" id="live-advice-text">Stay on shaded sidewalks and drink water regularly.</span>
+          </div>
+        </div>
+
+        <!-- ── Navigation Details Tabs (Turn-by-Turn, Facilities, Walk Score) ── -->
+        <div class="panel-card navigation-details-card hidden" id="details-card">
+          <div class="nav-tabs-bar" role="tablist">
+            <button class="nav-tab active" id="tab-btn-steps" data-tab="steps">
+              🧭 Turn-by-Turn
+            </button>
+            <button class="nav-tab" id="tab-btn-amenities" data-tab="amenities">
+              📍 Shops & Facilities
+            </button>
+            <button class="nav-tab" id="tab-btn-score" data-tab="score">
+              📊 Walk Score
+            </button>
+          </div>
+
+          <!-- TAB 1: Step-by-Step Directions with Small Streets & Shop Landmarks -->
+          <div class="tab-pane active" id="pane-steps">
+            <div class="pane-header">
+              <span class="pane-subtitle">Walking steps with small street names & shops</span>
+            </div>
+            <ol class="steps-timeline" id="steps-timeline"></ol>
+          </div>
+
+          <!-- TAB 2: Shops, Pharmacies & Facilities along Route -->
+          <div class="tab-pane" id="pane-amenities">
+            <div class="amenity-filters-row">
+              <button class="amenity-chip-btn active" data-filter="all">All (<span id="count-all">0</span>)</button>
+              <button class="amenity-chip-btn" data-filter="shop">🏪 Shops (<span id="count-shop">0</span>)</button>
+              <button class="amenity-chip-btn" data-filter="pharmacy">💊 Pharmacies (<span id="count-pharmacy">0</span>)</button>
+              <button class="amenity-chip-btn" data-filter="water">🚰 Water (<span id="count-water">0</span>)</button>
+              <button class="amenity-chip-btn" data-filter="hospital">🏥 Hospitals (<span id="count-hospital">0</span>)</button>
+              <button class="amenity-chip-btn" data-filter="toilet">🚻 Restrooms (<span id="count-toilet">0</span>)</button>
+            </div>
+            <div class="amenities-items-list" id="amenities-items-list"></div>
+          </div>
+
+          <!-- TAB 3: Walk Score Breakdown -->
+          <div class="tab-pane" id="pane-score">
+            <div class="score-overview-box">
+              <div class="score-giant" id="score-number">--</div>
+              <div class="score-summary-text">
+                <div class="score-verdict" id="score-label">--</div>
+                <div class="score-subtext" id="score-desc">Evaluated for pedestrians</div>
+              </div>
+            </div>
+
+            <div class="score-bars-group">
+              <div class="score-bar-item">
+                <span class="metric-label">🌿 Shade Canopy</span>
+                <div class="bar-shell"><div class="bar-fill shade-fill" id="bar-shade"></div></div>
+                <span class="metric-val" id="val-shade">--%</span>
+              </div>
+              <div class="score-bar-item">
+                <span class="metric-label">💡 Street Lighting</span>
+                <div class="bar-shell"><div class="bar-fill light-fill" id="bar-light"></div></div>
+                <span class="metric-val" id="val-light">--%</span>
+              </div>
+              <div class="score-bar-item">
+                <span class="metric-label">👥 Pedestrian Footfall</span>
+                <div class="bar-shell"><div class="bar-fill crowd-fill" id="bar-crowd"></div></div>
+                <span class="metric-val" id="val-crowd">--%</span>
+              </div>
+              <div class="score-bar-item">
+                <span class="metric-label">🛡️ Overall Safety</span>
+                <div class="bar-shell"><div class="bar-fill safety-fill" id="bar-safety"></div></div>
+                <span class="metric-val" id="val-safety">--%</span>
+              </div>
+            </div>
+
+            <div class="route-summary-footer" id="route-stats"></div>
+          </div>
+        </div>
+
+        <!-- ── Compact Accordion for Map Legend ── -->
+        <div class="panel-card compact-card" id="legend-card">
+          <details class="app-accordion">
+            <summary class="accordion-header">
+              <span>🗺️ Map Legend & Icons</span>
+              <span class="accordion-arrow">▾</span>
+            </summary>
+            <div class="accordion-body legend-body">
+              <div class="legend-item"><span class="legend-line line-green"></span> <b>Best Route:</b> Shaded & safe recommended path</div>
+              <div class="legend-item"><span class="legend-line line-orange-dash"></span> <b>Alternative Route:</b> Direct / commercial corridor</div>
+              <div class="legend-grid">
+                <div class="legend-item"><span class="legend-icon">🏪</span> Shop / Bakery</div>
+                <div class="legend-item"><span class="legend-icon">💊</span> Pharmacy</div>
+                <div class="legend-item"><span class="legend-icon">🚰</span> Drinking Water ATM</div>
+                <div class="legend-item"><span class="legend-icon">🏥</span> Hospital / Clinic</div>
+                <div class="legend-item"><span class="legend-icon">🚻</span> Public Restroom</div>
+                <div class="legend-item"><span class="legend-icon">🚏</span> Bus Stop</div>
+              </div>
+            </div>
+          </details>
+        </div>
+
+      </aside>
+
+      <!-- MAP CONTAINER -->
+      <div class="map-viewport">
+
+        <!-- Map Layer Selector: 2 buttons (Walkways, Satellite) -->
+        <div class="map-layer-selector">
+          <button class="layer-switch-btn active" id="layer-btn-walkways" title="Pedestrian footways, walkways and campus corridors">
+            🚶 Walkways
+          </button>
+          <button class="layer-switch-btn" id="layer-btn-sat" title="Satellite aerial imagery">
+            🛰️ Satellite
+          </button>
+        </div>
+
+        <!-- Floating Amenity Toggle Pills (Top Right) -->
+        <div class="map-amenity-pills">
+          <span class="floating-pills-label">Show:</span>
+          <label class="pill-check">
+            <input type="checkbox" id="chk-hospitals" checked />
+            <span class="pill-btn red">🏥 Hospitals</span>
+          </label>
+          <label class="pill-check">
+            <input type="checkbox" id="chk-water" checked />
+            <span class="pill-btn blue">🚰 Water</span>
+          </label>
+          <label class="pill-check">
+            <input type="checkbox" id="chk-toilets" checked />
+            <span class="pill-btn purple">🚻 Toilets</span>
+          </label>
+          <label class="pill-check">
+            <input type="checkbox" id="chk-shops" checked />
+            <span class="pill-btn amber">🏪 Shops</span>
+          </label>
+          <label class="pill-check">
+            <input type="checkbox" id="chk-pharmacy" checked />
+            <span class="pill-btn teal">💊 Pharmacies</span>
+          </label>
+          <button id="recenter-btn" class="map-recenter-btn" title="Fit routes and view all landmarks">
+            🎯 Recenter
+          </button>
+        </div>
+
+        <!-- Leaflet Map -->
+        <div id="map" aria-label="TutaMaps interactive map"></div>
+      </div>
+
+    </main>
+
+    <!-- ── Beginner Guide Modal ───────────────────────── -->
+    <div class="modal-backdrop hidden" id="guide-modal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h3>📘 How to Use TutaMaps</h3>
+          <button class="modal-close-btn" id="modal-close-btn">✕</button>
+        </div>
+        <div class="modal-body">
+          <h4>🌟 Built for Pedestrians in Coimbatore</h4>
+          <p>
+            Standard navigation forces pedestrians onto dangerous, unshaded highways or dark alleys. TutaMaps is built specifically for walking people, mapping every small street, footway, shop, and emergency amenity without requiring any API keys.
+          </p>
+
+          <h4>🧭 How Search & Navigation Works:</h4>
+          <ul>
+            <li><b>Single Search Bar:</b> Starts clean and minimal. Tap it to enter start and destination or pick popular destinations.</li>
+            <li><b>Two Route Comparison:</b> Route 1 gives shade canopy and water points; Route 2 shows the direct shortcut.</li>
+            <li><b>Live Navigation:</b> Tap <b>▶ Start Walking</b> to see minutes to go, live street changes, and current place updates.</li>
+          </ul>
+
+          <h4>☀️ Heat Mode vs 🌙 Night Mode:</h4>
+          <ul>
+            <li><b>☀️ Heat Mode:</b> Protects against Coimbatore's 40°C+ summer heat. Prioritizes tree shade and hydration points.</li>
+            <li><b>🌙 Night Mode:</b> Prioritizes brightly illuminated avenues, open shops, and active footfall.</li>
+            <li><b>🚶 Normal Mode:</b> Balanced pedestrian routing with safe sidewalks and crosswalks.</li>
+          </ul>
+
+          <h4>🏥 Hospitals, Water ATMs & Restrooms:</h4>
+          <ul>
+            <li><b>🏥 Hospitals:</b> 24/7 casualty trauma centers and primary health centres.</li>
+            <li><b>🚰 Free Drinking Water:</b> Corporation RO water dispensers and Panchayat water ATMs.</li>
+            <li><b>🚻 Public Restrooms:</b> Swachh Bharat public convenience blocks.</li>
+          </ul>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-navigate" id="modal-gotit-btn">Got it, let's explore! →</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="app.js"></script>
+  </body>
+</html>
