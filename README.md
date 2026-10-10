@@ -42,7 +42,8 @@ No API keys required.
 ## How to Run
 
 ```powershell
-cd C:\Users\Boopesh\Desktop\tutamap
+git clone https://github.com/kalaiyx/tutamaps
+cd tutamaps
 python -m http.server 5500
 ```
 
