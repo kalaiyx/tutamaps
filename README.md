@@ -1,7 +1,8 @@
 # TutaMaps — Google Maps Style Pedestrian Navigation & Local Streets
 **Team Neural Hydras · KIT Coimbatore (Kalaignarkarunanidhi Institute of Technology)**
 
-A walking navigation web app designed like **Google Maps**, tailored for pedestrians in Coimbatore. It renders small streets, residential footways, local shops, and bakeries, compares **2 distinct routes** (Recommended vs Direct Shortcut), and maps emergency amenities (**Hospitals, Pharmacies, Drinking Water ATMs, and Restrooms**).
+**Live demo:** [tutamaps.vercel.app](https://tutamaps.vercel.app)
+ A walking navigation web app designed like **Google Maps**, tailored for pedestrians in Coimbatore. It renders small streets, residential footways, local shops, and bakeries, compares **2 distinct routes** (Recommended vs Direct Shortcut), and maps emergency amenities (**Hospitals, Pharmacies, Drinking Water ATMs, and Restrooms**).
 
 No API keys required.
 
