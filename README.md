@@ -49,11 +49,13 @@ python -m http.server 5500
 ```                                                                                                                                        
 Open [http://localhost:5500](http://localhost:5500) in your browser.                                                                                                                                                                 ---
 
-## 👥 Team Neural Hydras
+## 👥 Team Quantuxx
 
 - **Kalaiyarasu K** (Team Lead)
 - **Keerthana S.J**
 - **Pavithra K**
+- **Ritthin J**
+- **Bhavana N**
 
 Built at KIT Coimbatore for the Smart Move Hackathon.
 
