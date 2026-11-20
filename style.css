@@ -2248,3 +2248,17 @@ html, body {
   color: #ffffff;
   border-color: #059669;
 }
+
+
+
+.site-header.mode-heat ~ main .route-duration-badge.active-r1,
+.mode-heat .route-duration-badge.active-r1 {
+  background: #ea580c !important;
+  box-shadow: 0 3px 10px rgba(234, 88, 12, 0.45) !important;
+}
+
+.site-header.mode-night ~ main .route-duration-badge.active-r1,
+.mode-night .route-duration-badge.active-r1 {
+  background: #7c3aed !important;
+  box-shadow: 0 3px 10px rgba(124, 58, 237, 0.45) !important;
+}

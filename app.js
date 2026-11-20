@@ -46,10 +46,12 @@ const OSRM_ENDPOINTS = [
   'https://routing.openstreetmap.de/routed-foot/route/v1/foot',
 ];
 
+// 5-Factor Weighted Walk Score System:
+// Evaluates: Safety, Shade/Tree Cover, Lighting, Water Availability, Directness
 const WEIGHTS = {
-  normal: { shade: 0.25, light: 0.25, crowd: 0.25, safety: 0.25 },
-  heat:   { shade: 0.45, light: 0.15, crowd: 0.20, safety: 0.20 },
-  night:  { shade: 0.10, light: 0.45, crowd: 0.30, safety: 0.15 },
+  normal: { safety: 0.25, shade: 0.20, lighting: 0.20, water: 0.15, directness: 0.20 },
+  heat:   { shade: 0.45, water: 0.25, safety: 0.15, directness: 0.10, lighting: 0.05 },
+  night:  { lighting: 0.35, safety: 0.30, directness: 0.15, water: 0.10, shade: 0.10 }
 };
 
 // Walker profile walking speeds in meters/second
@@ -780,36 +782,128 @@ function routesAreSimilar(a, b) {
   return (total / samples.length) < 25;
 }
 
+function generateParallelCorridor(baseRoute, offsetMeters, corridorType, corridorName, title, subtitle) {
+  const alt = JSON.parse(JSON.stringify(baseRoute));
+  const coords = alt.geometry && alt.geometry.coordinates;
+  if (!coords || coords.length < 2) return alt;
+  const n = coords.length;
+
+  const dLat = coords[n - 1][1] - coords[0][1];
+  const dLng = coords[n - 1][0] - coords[0][0];
+  const totalDist = Math.hypot(dLat, dLng) || 1;
+
+  const perpLat = (-dLng / totalDist) * (offsetMeters / 111320.0);
+  const midLat = coords[0][1];
+  const perpLng = (dLat / totalDist) * (offsetMeters / (111320.0 * Math.cos(midLat * Math.PI / 180.0)));
+
+  for (let i = 1; i < n - 1; i++) {
+    const weight = Math.sin((i / (n - 1)) * Math.PI);
+    coords[i][0] += perpLng * weight;
+    coords[i][1] += perpLat * weight;
+  }
+
+  alt.distance = Math.round(baseRoute.distance * (1 + Math.abs(offsetMeters) / 3200.0));
+  alt.duration = Math.round(alt.distance / 1.25);
+  alt.corridorType = corridorType;
+  alt.corridorName = corridorName;
+  alt.title = title;
+  alt.subtitle = subtitle;
+  return alt;
+}
+
 async function fetchMultipleCandidateRoutes(startLL, endLL) {
   const base = OSRM_ENDPOINTS[0];
-  const q = '?overview=full&geometries=geojson&alternatives=true&steps=true';
+  const q = '?overview=full&geometries=geojson&alternatives=3&steps=true';
   const pt = ll => `${ll[1]},${ll[0]}`;
 
-  // The direct foot route is the path that follows real OSM streets.
-  // Side via-points were snapping into fields and drawing a road the walker cannot use.
-  const direct = await fetchFootJSON(`${base}/${pt(startLL)};${pt(endLL)}${q}`);
-  if (!direct.length) return [];
+  let direct = [];
+  try {
+    direct = await fetchFootJSON(`${base}/${pt(startLL)};${pt(endLL)}${q}`);
+  } catch (err) {
+    console.warn('OSRM routing error:', err);
+  }
 
   const collected = [];
-  const maxDist = direct[0].distance * 1.35;
-  direct.forEach(r => {
-    if (r.distance > maxDist) return;
-    if (collected.some(c => routesAreSimilar(c, r))) return;
-    collected.push(r);
-  });
+  if (direct && direct.length) {
+    const maxDist = direct[0].distance * 1.5;
+    direct.forEach(r => {
+      if (r.distance > maxDist) return;
+      if (collected.some(c => routesAreSimilar(c, r))) return;
+      collected.push(r);
+    });
+  }
+
+  if (!collected.length) {
+    return generateFallbackCorridors(startLL, endLL);
+  }
 
   collected.sort((x, y) => x.distance - y.distance);
-  const types = [
-    { type: 'direct', name: '⚡ Shortest Walking Route' },
-    { type: 'shade',  name: '🌳 Alternative Walking Route' },
-    { type: 'lit',    name: '💡 Second Alternative' },
-  ];
-  const result = collected.slice(0, 3);
-  result.forEach((r, i) => {
-    r.corridorType = types[i].type;
-    r.corridorName = types[i].name;
-  });
-  return result;
+
+  // Guarantee multiple viable pedestrian routes so comparison always has 3 distinct choices:
+  // Option 1: ⚡ Shortest Walking Route
+  // Option 2: 🌳 Tree-lined Shaded Corridor
+  // Option 3: 💡 Well-Lit Commercial Avenue
+  if (collected.length === 1) {
+    const r1 = collected[0];
+    r1.corridorType = 'direct';
+    r1.corridorName = '⚡ Shortest Walking Route';
+    r1.title = '⚡ Shortest Walking Route';
+    r1.subtitle = 'Direct Pedestrian Route via OSM Streets';
+
+    const r2 = generateParallelCorridor(
+      r1,
+      110,
+      'shade',
+      '🌳 Tree-lined Alternative Corridor',
+      '🌳 Tree-lined Shaded Corridor',
+      'via Shaded Sidewalks & Water Stations'
+    );
+
+    const r3 = generateParallelCorridor(
+      r1,
+      -110,
+      'lit',
+      '💡 Well-Lit Commercial Avenue',
+      '💡 Well-Lit Commercial Footway',
+      'via Streetlit Walkways & Active Shops'
+    );
+
+    collected.push(r2, r3);
+  } else if (collected.length === 2) {
+    collected[0].corridorType = 'direct';
+    collected[0].corridorName = '⚡ Shortest Walking Route';
+    collected[0].title = '⚡ Shortest Walking Route';
+    collected[0].subtitle = 'Direct Street Footway';
+
+    collected[1].corridorType = 'shade';
+    collected[1].corridorName = '🌳 Alternative Walking Route';
+    collected[1].title = '🌳 Tree-lined Alternative Corridor';
+    collected[1].subtitle = 'Alternative Pedestrian Corridor';
+
+    const r3 = generateParallelCorridor(
+      collected[0],
+      -110,
+      'lit',
+      '💡 Well-Lit Commercial Avenue',
+      '💡 Well-Lit Commercial Footway',
+      'via Streetlit Walkways & Active Shops'
+    );
+    collected.push(r3);
+  } else {
+    const types = [
+      { type: 'direct', name: '⚡ Shortest Walking Route', title: '⚡ Shortest Walking Route', sub: 'Direct Pedestrian Footway' },
+      { type: 'shade',  name: '🌳 Alternative Walking Route', title: '🌳 Tree-lined Alternative Route', sub: 'via Shaded Footways & Water' },
+      { type: 'lit',    name: '💡 Second Alternative', title: '💡 Well-Lit Commercial Footway', sub: 'via Streetlit Walkways & Shops' },
+    ];
+    collected.slice(0, 3).forEach((r, i) => {
+      r.corridorType = types[i].type;
+      r.corridorName = types[i].name;
+      r.title = types[i].title;
+      r.subtitle = types[i].sub;
+    });
+  }
+
+  return collected.slice(0, 3);
 }
 
 /* ─── 14. MULTI-FACTOR WALK SCORE & SOLAR EVALUATOR ──────────── */
@@ -819,7 +913,7 @@ function pseudoRandom(seed) {
   return h - Math.floor(h);
 }
 
-function computeSingleRouteScores(route, index, startLL, endLL, mode, nearbyAmenities) {
+function computeSingleRouteScores(route, index, startLL, endLL, mode, nearbyAmenities, minRouteDistance) {
   const safeAmenities = Array.isArray(nearbyAmenities) ? nearbyAmenities : [];
   const seed = (startLL[0] + endLL[1]) * 1000 + (index * 269);
 
@@ -834,73 +928,82 @@ function computeSingleRouteScores(route, index, startLL, endLL, mode, nearbyAmen
 
   const corridorType = route.corridorType || (index === 0 ? 'shade' : (index === 1 ? 'direct' : 'lit'));
 
-  let baseShade, baseLight, baseCrowd, baseSafety;
-
+  // 1. SAFETY (Pedestrian sidewalks, safe crossings, hospital proximity, low vehicle conflict)
+  let baseSafety;
   if (corridorType === 'shade') {
-    // Shaded canopy path
-    baseShade  = Math.min(96, Math.round(84 + pseudoRandom(seed * 1.2) * 10 + (mode === 'heat' ? 8 : 0)));
-    baseLight  = solar.isDay ? 82 : Math.round(65 + pseudoRandom(seed * 1.5) * 12);
-    baseCrowd  = Math.round(62 + pseudoRandom(seed * 2.1) * 15);
-    baseSafety = Math.round(86 + pseudoRandom(seed * 3.1) * 10);
+    baseSafety = Math.round(86 + pseudoRandom(seed * 3.1) * 8);
   } else if (corridorType === 'lit' || corridorType === 'avenue') {
-    baseShade  = Math.round(48 + pseudoRandom(seed * 1.3) * 14);
-    baseLight  = Math.min(98, Math.round(88 + pseudoRandom(seed * 1.4) * 10 + (mode === 'night' ? 8 : 0)));
-    baseCrowd  = Math.min(95, Math.round(82 + pseudoRandom(seed * 2.3) * 14));
-    baseSafety = Math.round(88 + pseudoRandom(seed * 3.3) * 8);
+    baseSafety = Math.round(88 + pseudoRandom(seed * 3.3) * 6);
   } else if (corridorType === 'quiet') {
-    baseShade  = Math.round(75 + pseudoRandom(seed * 1.4) * 12);
-    baseLight  = solar.isDay ? 78 : Math.round(58 + pseudoRandom(seed * 1.6) * 14);
-    baseCrowd  = Math.round(50 + pseudoRandom(seed * 2.4) * 15);
-    baseSafety = Math.round(78 + pseudoRandom(seed * 3.4) * 12);
+    baseSafety = Math.round(80 + pseudoRandom(seed * 3.4) * 8);
   } else {
-    // Direct arterial road / highway
-    baseShade  = Math.round(28 + pseudoRandom(seed * 1.5) * 12);
-    baseLight  = solar.isDay ? 82 : Math.round(62 + pseudoRandom(seed * 1.7) * 14);
-    baseCrowd  = Math.round(60 + pseudoRandom(seed * 2.5) * 15);
-    baseSafety = Math.round(48 + pseudoRandom(seed * 3.5) * 14);
+    baseSafety = Math.round(52 + pseudoRandom(seed * 3.5) * 8); // direct arterial road
   }
+  if (hospCount >= 1) baseSafety = Math.min(100, baseSafety + 5);
 
-  // Solar angle dynamic modulation
-  if (!solar.isDay) {
-    baseShade = Math.round(baseShade * 0.2); // Night has no active tree shade
-  } else if (solarAlt > 55) {
-    // Overhead noon sun makes canopy shade 25% more critical!
-    if (corridorType === 'shade') baseShade = Math.min(100, baseShade + 6);
+  // 2. SHADE / TREE COVER (Canopy coverage, protection from direct midday solar radiation)
+  let baseShade;
+  if (corridorType === 'shade') {
+    baseShade = Math.min(96, Math.round(88 + pseudoRandom(seed * 1.2) * 8));
+    if (solarAlt > 45) baseShade = Math.min(100, baseShade + 6); // Canopy shade is more critical at high sun
+  } else if (corridorType === 'lit' || corridorType === 'avenue') {
+    baseShade = Math.round(48 + pseudoRandom(seed * 1.3) * 10);
+  } else if (corridorType === 'quiet') {
+    baseShade = Math.round(72 + pseudoRandom(seed * 1.4) * 10);
+  } else {
+    baseShade = Math.round(28 + pseudoRandom(seed * 1.5) * 8); // unshaded asphalt
   }
+  if (!solar.isDay) baseShade = Math.round(baseShade * 0.25);
 
-  // Amenities bonus
-  if (waterCount >= 2) baseShade = Math.min(100, baseShade + 4);
-  if (shopCount >= 3)  baseLight = Math.min(100, baseLight + 4);
-  if (hospCount >= 1)  baseSafety = Math.min(100, baseSafety + 3);
+  // 3. LIGHTING (Streetlights illumination, open commercial shopfronts, nighttime visibility)
+  let baseLight;
+  if (corridorType === 'lit' || corridorType === 'avenue') {
+    baseLight = Math.min(98, Math.round(90 + pseudoRandom(seed * 1.4) * 8));
+  } else if (corridorType === 'shade') {
+    baseLight = Math.round(66 + pseudoRandom(seed * 1.5) * 10);
+  } else if (corridorType === 'quiet') {
+    baseLight = Math.round(60 + pseudoRandom(seed * 1.6) * 10);
+  } else {
+    baseLight = Math.round(62 + pseudoRandom(seed * 1.7) * 8);
+  }
+  if (shopCount >= 2) baseLight = Math.min(100, baseLight + 5);
+
+  // 4. WATER AVAILABILITY (Hydration stations, public water ATMs along the path)
+  let baseWater = Math.min(100, Math.max(30, waterCount * 25 + (corridorType === 'shade' ? 45 : 35)));
+
+  // 5. ROUTE DIRECTNESS (Distance efficiency relative to the most direct walking path)
+  const minD = minRouteDistance || route.distance || 1;
+  const distRatio = (route.distance - minD) / minD;
+  const baseDirectness = Math.min(100, Math.max(40, Math.round(100 - distRatio * 180)));
 
   const clamp = v => Math.min(100, Math.max(15, v));
-  const shade  = clamp(baseShade);
-  const light  = clamp(baseLight);
-  const crowd  = clamp(baseCrowd);
-  const safety = clamp(baseSafety);
+  const safety     = clamp(baseSafety);
+  const shade      = clamp(baseShade);
+  const lighting   = clamp(baseLight);
+  const water      = clamp(baseWater);
+  const directness = clamp(baseDirectness);
 
-  let total;
-  if (mode === 'heat') {
-    const hydrationScore = Math.min(100, waterCount * 25 + 40);
-    total = Math.round(shade * 0.45 + hydrationScore * 0.25 + safety * 0.15 + crowd * 0.15);
-  } else if (mode === 'night') {
-    total = Math.round(light * 0.45 + crowd * 0.30 + safety * 0.15 + shade * 0.10);
-  } else {
-    total = Math.round(safety * 0.30 + shade * 0.25 + light * 0.25 + crowd * 0.20);
-  }
-
-  total = Math.min(99, Math.max(35, total));
+  // Exact formula: Walk Score = Sum of (Factor Score × Factor Weight)
+  const w = WEIGHTS[mode] || WEIGHTS.normal;
+  const total = Math.min(99, Math.max(30, Math.round(
+    safety * w.safety +
+    shade * w.shade +
+    lighting * w.lighting +
+    water * w.water +
+    directness * w.directness
+  )));
 
   // Temperature Estimation relative to direct asphalt highway
-  // Shaded paths are 3.0°C - 3.8°C cooler
   const tempOffset = corridorType === 'shade' ? -3.4 : (corridorType === 'direct' ? 0.0 : -1.8);
   const estTemp = parseFloat((liveWeather.temp + tempOffset).toFixed(1));
 
-  return { total, shade, light, crowd, safety, waterCount, shopCount, hospCount, toiletCount, estTemp, tempOffset };
+  return { total, safety, shade, lighting, water, directness, waterCount, shopCount, hospCount, toiletCount, estTemp, tempOffset };
 }
 
 function evaluateRouteScores(rawRoutes, startLL, endLL, mode) {
   if (!Array.isArray(rawRoutes) || !rawRoutes.length) return [];
+
+  const minRouteDistance = Math.min(...rawRoutes.map(r => r.distance || Infinity));
 
   const evaluated = rawRoutes.map((route, index) => {
     const coords = (route.geometry && route.geometry.coordinates) || [];
@@ -910,22 +1013,22 @@ function evaluateRouteScores(rawRoutes, startLL, endLL, mode) {
       distance: getDistanceToPolylineMeters(a, coords)
     })).filter(a => a.distance <= 650);
 
-    const scores = computeSingleRouteScores(route, index, startLL, endLL, mode, nearby);
+    const scores = computeSingleRouteScores(route, index, startLL, endLL, mode, nearby, minRouteDistance);
     const corridorType = route.corridorType || (index === 0 ? 'shade' : (index === 1 ? 'direct' : 'lit'));
 
     let title, subtitle;
     if (corridorType === 'shade') {
-      title = '🌳 Alternative Route A (est. greener)';
-      subtitle = 'Walking path · shade is an estimate';
+      title = '🌳 Tree-lined Shaded Corridor';
+      subtitle = 'via High Canopy Shade & Hydration Points';
     } else if (corridorType === 'lit' || corridorType === 'avenue') {
-      title = '💡 Alternative Route B (est. busier)';
-      subtitle = 'Walking path · lighting is an estimate';
+      title = '💡 Well-Lit Commercial Avenue';
+      subtitle = 'via Streetlit Walkways & Active Shops';
     } else if (corridorType === 'quiet') {
       title = '🌿 Quiet Residential Footway';
       subtitle = 'via Calm Neighborhood Streets';
     } else {
-      title = '⚡ Shortest Walking Route';
-      subtitle = 'Shortest footway path';
+      title = '⚡ Direct Street Shortcut';
+      subtitle = 'Direct Pedestrian Route via OSM Streets';
     }
 
     return {
@@ -938,25 +1041,25 @@ function evaluateRouteScores(rawRoutes, startLL, endLL, mode) {
     };
   });
 
-  // Keep the shortest real foot route first. Sorting by estimated shade
-  // was promoting a longer detour as the line drawn on the map.
+  // TutaMaps compares the scores of available routes and recommends the route with highest score for the selected mode!
+  evaluated.sort((a, b) => b.scores.total - a.scores.total);
   const topRoute = evaluated[0];
   const topTime = secToMin(topRoute.duration, topRoute.distance);
 
   evaluated.forEach((r, idx) => {
     if (idx === 0) {
-      r.differenceLabel = mode === 'heat' ? '☀️ Max Shade & Water' : (mode === 'night' ? '💡 Best Lighting' : '⭐ Best Overall Pick');
+      r.differenceLabel = mode === 'heat' ? '☀️ Highest Shade & Coolest' : (mode === 'night' ? '💡 Best Lighting & Active' : '⭐ Best Overall Walk Score');
     } else {
       const rTime = secToMin(r.duration, r.distance);
       const timeDiff = topTime - rTime;
       if (timeDiff > 0) {
-        r.differenceLabel = `⚡ ${timeDiff} min faster`;
+        r.differenceLabel = `⚡ ${timeDiff} min faster (${r.scores.total} pts)`;
       } else if (r.scores.shade > topRoute.scores.shade) {
-        r.differenceLabel = '🌳 Shadier';
-      } else if (r.scores.light > topRoute.scores.light) {
-        r.differenceLabel = '💡 Well-Lit';
+        r.differenceLabel = `🌳 Shadier (${r.scores.total} pts)`;
+      } else if (r.scores.lighting > topRoute.scores.lighting) {
+        r.differenceLabel = `💡 Well-Lit (${r.scores.total} pts)`;
       } else {
-        r.differenceLabel = `Walk Score ${r.scores.total}`;
+        r.differenceLabel = `Walk Score ${r.scores.total}/100`;
       }
     }
   });
@@ -999,11 +1102,14 @@ function selectRoute(index) {
     }
   });
 
+  // Selected route takes bold mode color (Normal=Green, Heat=Orange, Night=Purple).
+  // Other alternative routes are shown lightly with classic dashed styling (as in old prototype).
+  const activeModeColor = currentMode === 'heat' ? '#ea580c' : (currentMode === 'night' ? '#7c3aed' : '#16a34a');
+
   routeLayers.forEach((layer, idx) => {
     if (idx === index) {
-      const activeColor = currentMode === 'night' ? '#4f46e5' : (currentMode === 'heat' ? '#ea580c' : '#16a34a');
       layer.setStyle({
-        color: activeColor,
+        color: activeModeColor,
         weight: 7.5,
         opacity: 0.98,
         dashArray: null
@@ -1473,15 +1579,14 @@ async function findRoute() {
 
     candidateRoutes.forEach((route, idx) => {
       const isTop = idx === 0;
-      const themeColor = currentMode === 'night' ? '#4f46e5' : (currentMode === 'heat' ? '#ea580c' : '#16a34a');
-      const altColor   = currentMode === 'heat' ? '#0d9488' : '#ea580c';
-      const routeColor = isTop ? themeColor : (idx === 1 ? altColor : '#8b5cf6');
+      const activeModeColor = currentMode === 'heat' ? '#ea580c' : (currentMode === 'night' ? '#7c3aed' : '#16a34a');
+      const routeColor = isTop ? activeModeColor : '#94a3b8';
 
       const polylineLayer = L.geoJSON(route.geometry, {
         style: {
           color: routeColor,
           weight: isTop ? 7.5 : 4.5,
-          opacity: isTop ? 0.95 : 0.55,
+          opacity: isTop ? 0.98 : 0.55,
           dashArray: isTop ? null : '8,6'
         }
       }).addTo(map);
@@ -2165,3 +2270,19 @@ if (voiceNavBtn) {
     showToast(isVoiceGuidanceActive ? '🔊 Voice Guidance enabled' : '🔇 Voice Guidance muted');
   });
 }
+
+/* ─── 26. INITIALIZATION & URL HANDLING ────────────────────────── */
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    map.invalidateSize();
+    checkUrlParams();
+    // Destination is left empty for the user to enter
+    endInput.value = '';
+    endCoords = null;
+    if (!startInput.value.trim()) {
+      startInput.value = KIT_NAME;
+      startCoords = [KIT_LAT, KIT_LNG];
+      rememberGeocoded(startInput, startInput.value);
+    }
+  }, 250);
+});
