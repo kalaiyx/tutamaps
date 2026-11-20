@@ -2262,3 +2262,6 @@ html, body {
   background: #7c3aed !important;
   box-shadow: 0 3px 10px rgba(124, 58, 237, 0.45) !important;
 }
+
+.water-fill  { background: linear-gradient(90deg, #0284c7, #0369a1); }
+.direct-fill { background: linear-gradient(90deg, #8b5cf6, #7c3aed); }

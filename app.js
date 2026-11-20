@@ -1155,14 +1155,20 @@ function renderScoreCard(scores, routeData, index) {
     scoreDesc.textContent  = 'Direct highway shortcut with high traffic and heat exposure.';
   }
 
-  const setBar = (barId, valId, pct) => {
-    document.getElementById(barId).style.width = pct + '%';
-    document.getElementById(valId).textContent = pct + '%';
+  const w = WEIGHTS[currentMode] || WEIGHTS.normal;
+  const setBar = (barId, valId, pct, pillId, weight) => {
+    const barEl = document.getElementById(barId);
+    const valEl = document.getElementById(valId);
+    const pillEl = document.getElementById(pillId);
+    if (barEl) barEl.style.width = pct + '%';
+    if (valEl) valEl.textContent = pct + '%';
+    if (pillEl) pillEl.textContent = `Weight: ${Math.round(weight * 100)}%`;
   };
-  setBar('bar-shade',  'val-shade',  scores.shade);
-  setBar('bar-light',  'val-light',  scores.light);
-  setBar('bar-crowd',  'val-crowd',  scores.crowd);
-  setBar('bar-safety', 'val-safety', scores.safety);
+  setBar('bar-safety', 'val-safety', scores.safety, 'weight-pill-safety', w.safety);
+  setBar('bar-shade',  'val-shade',  scores.shade,  'weight-pill-shade',  w.shade);
+  setBar('bar-light',  'val-light',  scores.lighting, 'weight-pill-light', w.lighting);
+  setBar('bar-water',  'val-water',  scores.water,  'weight-pill-water',  w.water);
+  setBar('bar-direct', 'val-direct', scores.directness, 'weight-pill-direct', w.directness);
 
   const distKm = metersToKm(routeData.distance);
   const timeMin = secToMin(routeData.duration, routeData.distance);

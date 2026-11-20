@@ -358,12 +358,20 @@
               </button>
             </div>
 
-            <!-- Score Progress Bars with Transparency Badges -->
+            <!-- Score Progress Bars for All 5 Evaluation Factors -->
             <div class="score-bars-group">
               <div class="score-bar-item">
                 <div class="metric-header-row">
-                  <span class="metric-label">🌿 Shade Canopy</span>
-                  <span class="proof-tag-pill">OSM Trees + Live SunCalc</span>
+                  <span class="metric-label">🛡️ Pedestrian Safety</span>
+                  <span class="proof-tag-pill" id="weight-pill-safety">Weight: 25%</span>
+                </div>
+                <div class="bar-shell"><div class="bar-fill safety-fill" id="bar-safety"></div></div>
+                <span class="metric-val" id="val-safety">--</span>
+              </div>
+              <div class="score-bar-item">
+                <div class="metric-header-row">
+                  <span class="metric-label">🌿 Shade or Tree Cover</span>
+                  <span class="proof-tag-pill" id="weight-pill-shade">Weight: 20%</span>
                 </div>
                 <div class="bar-shell"><div class="bar-fill shade-fill" id="bar-shade"></div></div>
                 <span class="metric-val" id="val-shade">--</span>
@@ -371,26 +379,26 @@
               <div class="score-bar-item">
                 <div class="metric-header-row">
                   <span class="metric-label">💡 Street Lighting</span>
-                  <span class="proof-tag-pill">OSM Streetlights + Active Shops</span>
+                  <span class="proof-tag-pill" id="weight-pill-light">Weight: 20%</span>
                 </div>
                 <div class="bar-shell"><div class="bar-fill light-fill" id="bar-light"></div></div>
                 <span class="metric-val" id="val-light">--</span>
               </div>
               <div class="score-bar-item">
                 <div class="metric-header-row">
-                  <span class="metric-label">👥 Pedestrian Footfall</span>
-                  <span class="proof-tag-pill">Commercial & Transit Density</span>
+                  <span class="metric-label">🚰 Water Availability</span>
+                  <span class="proof-tag-pill" id="weight-pill-water">Weight: 15%</span>
                 </div>
-                <div class="bar-shell"><div class="bar-fill crowd-fill" id="bar-crowd"></div></div>
-                <span class="metric-val" id="val-crowd">--</span>
+                <div class="bar-shell"><div class="bar-fill water-fill" id="bar-water"></div></div>
+                <span class="metric-val" id="val-water">--</span>
               </div>
               <div class="score-bar-item">
                 <div class="metric-header-row">
-                  <span class="metric-label">🛡️ Overall Safety</span>
-                  <span class="proof-tag-pill">Sidewalk Segregation & Hospital Access</span>
+                  <span class="metric-label">🧭 Route Directness</span>
+                  <span class="proof-tag-pill" id="weight-pill-direct">Weight: 20%</span>
                 </div>
-                <div class="bar-shell"><div class="bar-fill safety-fill" id="bar-safety"></div></div>
-                <span class="metric-val" id="val-safety">--</span>
+                <div class="bar-shell"><div class="bar-fill direct-fill" id="bar-direct"></div></div>
+                <span class="metric-val" id="val-direct">--</span>
               </div>
             </div>
 
@@ -508,63 +516,122 @@
 
     <!-- ── 1. "How We Calculate" Walk Score Proof Modal ──────── -->
     <div class="modal-backdrop hidden" id="proof-modal">
-      <div class="modal-card">
+      <div class="modal-card" style="max-width: 680px; max-height: 90vh; overflow-y: auto;">
         <div class="modal-header">
           <div class="modal-title-row">
             <span class="modal-icon">📐</span>
-            <h3>How We Calculate Walk Score (Trust Proof)</h3>
+            <h3>How We Calculate Walk Score (Weighted Methodology)</h3>
           </div>
           <button class="modal-close-btn" id="proof-close-btn">✕</button>
         </div>
-        <div class="modal-body">
-          <p class="proof-intro">
-            Unlike arbitrary score apps, TutaMaps calculates Walk Score (0-100) using <b>real mathematical weights</b> based on OpenStreetMap tagging, live solar angle (SunCalc), and pedestrian comfort metrics:
+        <div class="modal-body" style="padding: 20px 24px;">
+          <p class="proof-intro" style="font-size: 0.9rem; line-height: 1.5; color: #334155; margin-bottom: 14px;">
+            Our TutaMaps application calculates a <b>Walk Score (0 to 100)</b> for every available walking route using a weighted scoring system based on five core factors: <b>safety, shade or tree cover, lighting, water availability, and route directness</b>.
           </p>
 
-          <div class="formula-box">
-            <code>Walk Score = w₁·Shade + w₂·Lighting + w₃·Footfall + w₄·Safety + AmenityBonus</code>
-          </div>
-
-          <div class="proof-breakdown-cards">
-            <div class="proof-card">
-              <div class="proof-card-header">
-                <b>🌿 1. Shade Canopy Index (0-100%)</b>
-                <span class="proof-badge-live">SunCalc + OSM</span>
-              </div>
-              <p>Evaluates OSM tree rows (<code>natural=tree_row</code>, <code>leisure=park</code>) and street orientation relative to the live solar azimuth and zenith angle computed via <b>SunCalc</b>. At noon (solar altitude &gt; 60°), overhead canopy gives 100% shade; morning/evening models building shadow length.</p>
+          <div class="formula-box" style="background: #0f172a; color: #f8fafc; padding: 14px 18px; border-radius: 10px; border: 1px solid #334155; margin-bottom: 16px;">
+            <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.6px; color: #38bdf8; font-weight: 700; margin-bottom: 4px;">General Calculation:</div>
+            <div style="font-size: 1.12rem; font-weight: 800; color: #facc15; font-family: monospace;">
+              Walk Score = ∑ (Factor Score × Factor Weight)
             </div>
-
-            <div class="proof-card">
-              <div class="proof-card-header">
-                <b>💡 2. Street Lighting Index (0-100%)</b>
-                <span class="proof-badge-osm">OSM Lit + Commercial Shops</span>
-              </div>
-              <p>Evaluates <code>lit=yes</code> tags on OpenStreetMap footways and calculates open shop and bakery density along the corridor. Active storefronts provide natural night illumination and ambient vigilance.</p>
-            </div>
-
-            <div class="proof-card">
-              <div class="proof-card-header">
-                <b>👥 3. Pedestrian Footfall Index (0-100%)</b>
-                <span class="proof-badge-est">Density Model</span>
-              </div>
-              <p>Estimated by proximity to bus stops, tea stalls, campus gates, and markets. High footfall routes deter street harassment and isolated incidents.</p>
-            </div>
-
-            <div class="proof-card">
-              <div class="proof-card-header">
-                <b>🛡️ 4. Overall Safety & Emergency Index (0-100%)</b>
-                <span class="proof-badge-osm">Sidewalks + Healthcare</span>
-              </div>
-              <p>Checks for segregated sidewalks (<code>sidewalk=both/separate</code>), marked crosswalks, and distance to 24/7 emergency casualty hospitals and pharmacies within 500m.</p>
+            <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 5px;">
+              Final score is represented on a clean scale of <b>0 to 100</b>.
             </div>
           </div>
 
-          <div class="proof-footer-note">
-            <b>Data Transparency:</b> Where explicit OSM tags are missing in village lanes, scores are marked as <i>"Estimated via Urban Pedestrian Heuristics"</i> to maintain absolute honesty with judges.
+          <h4 style="margin: 16px 0 8px 0; font-size: 0.95rem; color: #0f172a; font-weight: 800;">
+            📊 How Factor Weights Vary Across Modes:
+          </h4>
+          <p style="font-size: 0.82rem; color: #64748b; margin-bottom: 10px;">
+            The same route receives different Walk Scores in different modes because the importance of each factor changes to reflect pedestrian needs:
+          </p>
+
+          <div style="overflow-x: auto; border: 1px solid #cbd5e1; border-radius: 8px; margin-bottom: 16px;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 0.84rem; text-align: left;">
+              <thead>
+                <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1;">
+                  <th style="padding: 9px 12px; font-weight: 700;">Evaluation Factor</th>
+                  <th style="padding: 9px 12px; text-align: center; color: #16a34a; font-weight: 700;">🚶 Normal Mode</th>
+                  <th style="padding: 9px 12px; text-align: center; color: #ea580c; font-weight: 700;">☀️ Heat Mode</th>
+                  <th style="padding: 9px 12px; text-align: center; color: #7c3aed; font-weight: 700;">🌙 Night Mode</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                  <td style="padding: 8px 12px;"><b>🌿 Shade or Tree Cover</b></td>
+                  <td style="padding: 8px 12px; text-align: center;">0.20 (20%)</td>
+                  <td style="padding: 8px 12px; text-align: center; font-weight: 800; background: rgba(234, 88, 12, 0.12); color: #c2410c;">0.45 (45%) ⭐</td>
+                  <td style="padding: 8px 12px; text-align: center;">0.10 (10%)</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                  <td style="padding: 8px 12px;"><b>💡 Street Lighting</b></td>
+                  <td style="padding: 8px 12px; text-align: center;">0.20 (20%)</td>
+                  <td style="padding: 8px 12px; text-align: center;">0.05 (5%)</td>
+                  <td style="padding: 8px 12px; text-align: center; font-weight: 800; background: rgba(124, 58, 237, 0.12); color: #6d28d9;">0.35 (35%) ⭐</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                  <td style="padding: 8px 12px;"><b>🛡️ Pedestrian Safety</b></td>
+                  <td style="padding: 8px 12px; text-align: center; font-weight: 700; background: rgba(22, 163, 74, 0.08); color: #15803d;">0.25 (25%)</td>
+                  <td style="padding: 8px 12px; text-align: center;">0.15 (15%)</td>
+                  <td style="padding: 8px 12px; text-align: center; font-weight: 700;">0.30 (30%)</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                  <td style="padding: 8px 12px;"><b>🚰 Water Availability</b></td>
+                  <td style="padding: 8px 12px; text-align: center;">0.15 (15%)</td>
+                  <td style="padding: 8px 12px; text-align: center; font-weight: 700; background: rgba(234, 88, 12, 0.08); color: #c2410c;">0.25 (25%)</td>
+                  <td style="padding: 8px 12px; text-align: center;">0.10 (10%)</td>
+                </tr>
+                <tr style="border-bottom: 2px solid #cbd5e1;">
+                  <td style="padding: 8px 12px;"><b>🧭 Route Directness</b></td>
+                  <td style="padding: 8px 12px; text-align: center;">0.20 (20%)</td>
+                  <td style="padding: 8px 12px; text-align: center;">0.10 (10%)</td>
+                  <td style="padding: 8px 12px; text-align: center;">0.15 (15%)</td>
+                </tr>
+                <tr style="background: #f8fafc; font-weight: 800;">
+                  <td style="padding: 9px 12px;">Sum of Factor Weights</td>
+                  <td style="padding: 9px 12px; text-align: center; color: #16a34a;">1.00 (100%)</td>
+                  <td style="padding: 9px 12px; text-align: center; color: #ea580c;">1.00 (100%)</td>
+                  <td style="padding: 9px 12px; text-align: center; color: #7c3aed;">1.00 (100%)</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="proof-breakdown-cards" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px;">
+            <div class="proof-card" style="padding: 10px 14px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px;">
+              <div class="proof-card-header" style="font-size: 0.86rem; font-weight: 700; color: #0f172a; margin-bottom: 4px;">
+                1. 🚶 Normal Mode (Balanced Approach)
+              </div>
+              <p style="font-size: 0.8rem; color: #475569; margin: 0;">
+                Considers all five factors evenly to recommend a route with good overall walking conditions, balanced between comfort, speed, and safety.
+              </p>
+            </div>
+
+            <div class="proof-card" style="padding: 10px 14px; background: rgba(234, 88, 12, 0.05); border: 1px solid rgba(234, 88, 12, 0.2); border-radius: 8px;">
+              <div class="proof-card-header" style="font-size: 0.86rem; font-weight: 700; color: #ea580c; margin-bottom: 4px;">
+                2. ☀️ Heat Mode (Shade Weight: 0.45)
+              </div>
+              <p style="font-size: 0.8rem; color: #475569; margin: 0;">
+                Gives greater importance to shade and tree cover (weight: <b>0.45</b>) and water availability (<b>0.25</b>) because pedestrians need protection from direct sunlight and heat exhaustion.
+              </p>
+            </div>
+
+            <div class="proof-card" style="padding: 10px 14px; background: rgba(124, 58, 237, 0.05); border: 1px solid rgba(124, 58, 237, 0.2); border-radius: 8px;">
+              <div class="proof-card-header" style="font-size: 0.86rem; font-weight: 700; color: #7c3aed; margin-bottom: 4px;">
+                3. 🌙 Night Mode (Lighting Weight: 0.35)
+              </div>
+              <p style="font-size: 0.8rem; color: #475569; margin: 0;">
+                Gives greater importance to street lighting (weight: <b>0.35</b>) and pedestrian safety (<b>0.30</b>) because visibility and ambient vigilance are essential when walking after dark.
+              </p>
+            </div>
+          </div>
+
+          <div class="proof-footer-note" style="background: #f1f5f9; padding: 10px 14px; border-radius: 8px; border-left: 4px solid #10b981; font-size: 0.82rem; color: #334155;">
+            <b>💡 Core Principle:</b> <i>"In simple words, we don't change the destination; we change what matters most when selecting the walking route."</i> TutaMaps compares all available routes and recommends the route with the highest score for the selected mode.
           </div>
         </div>
-        <div class="modal-footer">
-          <button class="btn-navigate" id="proof-gotit-btn">Understood, return to map</button>
+        <div class="modal-footer" style="padding: 14px 24px; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end;">
+          <button class="btn-navigate" id="proof-gotit-btn" style="padding: 8px 18px; font-weight: 700;">Understood, return to map</button>
         </div>
       </div>
     </div>
