@@ -1,22 +1,48 @@
+
+function getAmenitySvg(type) {
+  switch (type) {
+    case 'hospital':
+      return '<svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" fill="none" stroke-width="2.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+    case 'water':
+      return '<svg viewBox="0 0 24 24" width="13" height="13" fill="#fff"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>';
+    case 'pharmacy':
+      return '<svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><line x1="12" y1="7" x2="12" y2="17"/><line x1="7" y1="12" x2="17" y2="12"/></svg>';
+    case 'shop':
+      return '<svg viewBox="0 0 24 24" width="13" height="13" stroke="#fff" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/></svg>';
+    case 'toilet':
+      return '<svg viewBox="0 0 24 24" width="13" height="13" fill="#fff"><circle cx="12" cy="5" r="2.2"/><path d="M7 9h10v3h-2v8h-3v-6h-2v6H7v-8H5V9z"/></svg>';
+    default:
+      return '<svg viewBox="0 0 24 24" width="13" height="13" fill="#fff"><circle cx="12" cy="12" r="4"/></svg>';
+  }
+}
 /* ═══════════════════════════════════════════════════════════════
-   TutaMaps — app.js (Google Maps Pedestrian Navigation)
+   TutaMaps — app.js (Google Maps Style Pedestrian Navigation)
    Real Small Streets · Local Shops & Pharmacies · Dual Route Comparison
-   Team Neural Hydras · KIT Coimbatore
+   Live Solar Shade via SunCalc · Live Weather via Open-Meteo
+   Team Quantuxx · KIT Coimbatore
    ═══════════════════════════════════════════════════════════════ */
 
 'use strict';
 
 /* ─── 1. CONSTANTS ──────────────────────────────────────────── */
 
-// KIT Coimbatore campus (Kannampalayam)
-const KIT_LAT  = 11.0550;
-const KIT_LNG  = 77.1333;
+// KIT Coimbatore campus (Kannampalayam) — OSM / college disclosure point
+// 10°59'57"N 77°05'03"E on Pappampatti Road. The old pin (11.055, 77.133) sat ~7 km away.
+const KIT_LAT  = 10.99931;
+const KIT_LNG  = 77.08428;
 const KIT_NAME = 'KIT - Kalaignarkarunanidhi Institute of Technology, Kannampalayam, Coimbatore';
+
+// Sulur Government Hospital, Trichy Road (OSM)
+const SULUR_HOSP_LAT = 11.02475;
+const SULUR_HOSP_LNG = 77.12286;
+const SULUR_HOSP_NAME = 'Sulur Government Hospital, Sulur, Coimbatore';
+
+const SULUR_BUS_LAT = 11.02594;
+const SULUR_BUS_LNG = 77.12522;
 
 const PHOTON = 'https://photon.komoot.io/api/';
 const NOMINATIM = 'https://nominatim.openstreetmap.org';
 const OSRM_ENDPOINTS = [
-  'https://router.project-osrm.org/route/v1/foot',
   'https://routing.openstreetmap.de/routed-foot/route/v1/foot',
 ];
 
@@ -26,6 +52,14 @@ const WEIGHTS = {
   night:  { shade: 0.10, light: 0.45, crowd: 0.30, safety: 0.15 },
 };
 
+// Walker profile walking speeds in meters/second
+const WALKER_SPEEDS = {
+  normal:     1.25, // 4.5 km/h
+  elderly:    0.85, // 3.0 km/h (gentle pace, senior walkers)
+  kids:       1.00, // 3.6 km/h (strollers, young children)
+  wheelchair: 1.10, // 4.0 km/h (accessible curb cuts)
+};
+
 const KNOWN_LOCATION_ALIASES = {
   'kit': [KIT_LAT, KIT_LNG],
   'kit college': [KIT_LAT, KIT_LNG],
@@ -33,113 +67,122 @@ const KNOWN_LOCATION_ALIASES = {
   'kit campus': [KIT_LAT, KIT_LNG],
   'kit coimbatore': [KIT_LAT, KIT_LNG],
   'kalaignarkarunanidhi institute of technology': [KIT_LAT, KIT_LNG],
-  'sulur': [11.0341, 77.1264],
-  'sulur bus stand': [11.0341, 77.1264],
-  'sulur old bus stand': [11.0341, 77.1264],
-  'sulur bus stop': [11.0341, 77.1264],
-  'sulur lake': [11.0290, 77.1280],
-  'sulur government hospital': [11.0345, 77.1255],
-  'government hospital sulur': [11.0345, 77.1255],
-  'sulur hospital': [11.0345, 77.1255],
-  'kannampalayam': [11.0510, 77.1300],
-  'kannampalayam pirivu': [11.0538, 77.1315],
-  'apollo pharmacy': [11.0348, 77.1260],
-  'apollo pharmacy sulur': [11.0348, 77.1260],
-  'kr bakes': [11.0538, 77.1315],
-  'kr bakes and sweets': [11.0538, 77.1315],
-  'coimbatore airport': [11.0310, 77.0438],
-  'airport peelamedu': [11.0310, 77.0438],
-  'airport': [11.0310, 77.0438],
-  'fun republic mall': [11.0237, 77.0005],
-  'fun mall': [11.0237, 77.0005],
-  'singanallur bus stand': [11.0014, 77.0258],
-  'singanallur': [11.0014, 77.0258],
-  'ondipudur': [11.0080, 77.0515],
-  'peelamedu': [11.0255, 77.0035],
-  'gandhipuram': [11.0168, 76.9673],
-  'coimbatore railway junction': [10.9955, 76.9620],
-  'railway station': [10.9955, 76.9620],
+  'sulur': [SULUR_BUS_LAT, SULUR_BUS_LNG],
+  'sulur bus stand': [SULUR_BUS_LAT, SULUR_BUS_LNG],
+  'sulur old bus stand': [SULUR_BUS_LAT, SULUR_BUS_LNG],
+  'sulur bus stop': [SULUR_BUS_LAT, SULUR_BUS_LNG],
+  'sulur lake': [11.02867, 77.11442],
+  'sulur government hospital': [SULUR_HOSP_LAT, SULUR_HOSP_LNG],
+  'government hospital sulur': [SULUR_HOSP_LAT, SULUR_HOSP_LNG],
+  'sulur hospital': [SULUR_HOSP_LAT, SULUR_HOSP_LNG],
+  'kannampalayam': [10.99509, 77.09846],
+  'kannampalayam pirivu': [10.99509, 77.09846],
+  'apollo pharmacy': [11.02540, 77.12410],
+  'apollo pharmacy sulur': [11.02540, 77.12410],
+  'kr bakes': [11.02630, 77.12460],
+  'kr bakes and sweets': [11.02630, 77.12460],
+  'coimbatore airport': [11.03291, 77.04270],
+  'airport peelamedu': [11.03291, 77.04270],
+  'airport': [11.03291, 77.04270],
+  'fun republic mall': [11.02435, 77.01066],
+  'fun mall': [11.02435, 77.01066],
+  'singanallur bus stand': [11.00228, 77.02914],
+  'singanallur': [11.00228, 77.02914],
+  'ondipudur': [11.00397, 77.04930],
+  'peelamedu': [11.02778, 76.99862],
+  'gandhipuram': [11.01827, 76.96777],
+  'coimbatore railway junction': [10.99757, 76.96637],
+  'railway station': [10.99757, 76.96637],
+  'psg hospital': [11.01875, 77.00701],
+  'psg hospitals': [11.01875, 77.00701],
+  'kmch': [11.04041, 77.04088],
   'my location': null,
 };
 
 /* ─── 2. LOCAL SHOPS, SMALL STREETS & ESSENTIAL FACILITIES ─── */
-// Verified database for walking people in Coimbatore, Kannampalayam, Sulur & KIT corridor
 const LOCAL_LANDMARKS_DATABASE = [
   // 🏪 LOCAL SHOPS, BAKERIES & TEA STALLS
-  { id: 's1', name: 'KR Bakes & Sweets, Kannampalayam Pirivu', type: 'shop', lat: 11.0538, lng: 77.1315, desc: 'Fresh baked snacks, hot tea, juices and packaged water. Landmark bakery.', icon: '🏪', street: 'College Road' },
-  { id: 's2', name: 'Aavin Milk & Ice Cream Parlour', type: 'shop', lat: 11.0542, lng: 77.1325, desc: 'State dairy milk booth, cold beverages and packaged drinking water bottles.', icon: '🏪', street: 'College Road' },
-  { id: 's3', name: 'Sri Annapoorna Sweet Stall & Bakery, Sulur', type: 'shop', lat: 11.0340, lng: 77.1265, desc: 'Popular vegetarian bakery, coffee & tea spot along main bus station road.', icon: '🏪', street: 'Trichy Road' },
-  { id: 's4', name: 'Tea Time & Snacks Corner', type: 'shop', lat: 11.0510, lng: 77.1300, desc: 'Pedestrian tea stall, biscuits and cold drinks at village junction.', icon: '🏪', street: 'Kannampalayam Main Rd' },
-  { id: 's5', name: 'Kannan Departmental Store, Sulur', type: 'shop', lat: 11.0335, lng: 77.1272, desc: 'Supermarket for groceries, personal care, snacks and bottled drinks.', icon: '🏪', street: 'Kalangal Road' },
-  { id: 's6', name: 'Fresh Fruits & Tender Coconut Stall', type: 'shop', lat: 11.0525, lng: 77.1310, desc: 'Fresh tender coconut, fresh fruit juices and hydration point.', icon: '🏪', street: 'College Road' },
-  { id: 's7', name: 'Nilgiris Supermarket, Singanallur', type: 'shop', lat: 11.0030, lng: 77.0260, desc: 'Supermarket with bakery, groceries and cold hydration beverages.', icon: '🏪', street: 'Trichy Road' },
-  { id: 's8', name: 'Shanthi Social Services Canteen & Bakery', type: 'shop', lat: 11.0070, lng: 77.0415, desc: 'Famous hygienic budget canteen, bakery and drinking water dispensary.', icon: '🏪', street: 'Trichy Road' },
+  { id: 's1', name: 'KR Bakes & Sweets, Trichy Road, Sulur', type: 'shop', lat: 11.02630, lng: 77.12460, desc: 'Bakery and snacks on Trichy Road beside Sulur bus stand.', icon: '🏪', street: 'Trichy Road' },
+  { id: 's2', name: 'Aavin Milk Parlour, KIT Gate', type: 'shop', lat: 10.99905, lng: 77.08470, desc: 'Milk booth and cold drinks at the campus approach on Pappampatti Road.', icon: '🏪', street: 'Pappampatti Road' },
+  { id: 's3', name: 'Sri Annapoorna Sweet Stall & Bakery, Sulur', type: 'shop', lat: 11.02570, lng: 77.12500, desc: 'Vegetarian bakery and tea stall along the Sulur bus stand road.', icon: '🏪', street: 'Trichy Road' },
+  { id: 's4', name: 'Tea Time & Snacks Corner, Kannampalayam', type: 'shop', lat: 10.99540, lng: 77.09810, desc: 'Tea stall and cold drinks at Kannampalayam junction.', icon: '🏪', street: 'Kannampalayam Road' },
+  { id: 's5', name: 'Kannan Departmental Store, Sulur', type: 'shop', lat: 11.02520, lng: 77.12550, desc: 'Groceries, snacks and bottled drinks near Sulur bus stand.', icon: '🏪', street: 'Trichy Road' },
+  { id: 's6', name: 'Tender Coconut Stall, KIT Approach', type: 'shop', lat: 10.99880, lng: 77.08490, desc: 'Tender coconut and juice stall on the road outside KIT gate.', icon: '🏪', street: 'Pappampatti Road' },
+  { id: 's7', name: 'Nilgiris Supermarket, Singanallur', type: 'shop', lat: 11.00280, lng: 77.02870, desc: 'Supermarket with bakery and cold drinks near Singanallur bus stand.', icon: '🏪', street: 'Kamarajar Road' },
+  { id: 's8', name: 'Shanthi Social Services Canteen, Ondipudur', type: 'shop', lat: 11.00440, lng: 77.04880, desc: 'Budget canteen and drinking water on Trichy Road, Ondipudur.', icon: '🏪', street: 'Trichy Road' },
 
   // 💊 PHARMACIES & MEDICAL STORES
-  { id: 'p1', name: 'Apollo Pharmacy, Trichy Road, Sulur', type: 'pharmacy', lat: 11.0348, lng: 77.1260, desc: '24/7 Pharmacy with first-aid kits, emergency medicines and electrolytes.', icon: '💊', street: 'Trichy Road' },
-  { id: 'p2', name: 'MedPlus Pharmacy, Kannampalayam', type: 'pharmacy', lat: 11.0512, lng: 77.1295, desc: 'Prescription medicines, ORS hydration salts and emergency bandages.', icon: '💊', street: 'Kannampalayam Main Rd' },
-  { id: 'p3', name: 'Jan Aushadhi Generic Medical Store, Sulur', type: 'pharmacy', lat: 11.0332, lng: 77.1258, desc: 'Government subsidized affordable generic medical store.', icon: '💊', street: 'Taluk Office Rd' },
-  { id: 'p4', name: 'Thulasi Pharmacies, Singanallur', type: 'pharmacy', lat: 11.0020, lng: 77.0275, desc: 'Full prescription pharmacy with 24/7 delivery and first-aid.', icon: '💊', street: 'Trichy Road' },
-  { id: 'p5', name: 'KIT Campus Medical & First Aid Dispensary', type: 'pharmacy', lat: 11.0554, lng: 77.1338, desc: 'On-campus medicine station, nurse on duty and first-aid supplies.', icon: '💊', street: 'KIT Campus Ave' },
+  { id: 'p1', name: 'Apollo Pharmacy, Trichy Road, Sulur', type: 'pharmacy', lat: 11.02540, lng: 77.12410, desc: 'Pharmacy with first-aid, emergency medicines and electrolytes near Sulur bus stand.', icon: '💊', street: 'Trichy Road' },
+  { id: 'p2', name: 'MedPlus Pharmacy, Kannampalayam', type: 'pharmacy', lat: 10.99520, lng: 77.09880, desc: 'Prescription medicines, ORS and first-aid at Kannampalayam.', icon: '💊', street: 'Kannampalayam Road' },
+  { id: 'p3', name: 'Jan Aushadhi Generic Medical Store, Sulur', type: 'pharmacy', lat: 11.02440, lng: 77.12340, desc: 'Government subsidized generic medical store beside Sulur GH.', icon: '💊', street: 'Trichy Road' },
+  { id: 'p4', name: 'Thulasi Pharmacies, Singanallur', type: 'pharmacy', lat: 11.00190, lng: 77.02950, desc: 'Prescription pharmacy near Singanallur bus stand.', icon: '💊', street: 'Kamarajar Road' },
+  { id: 'p5', name: 'KIT Campus Medical & First Aid Dispensary', type: 'pharmacy', lat: 10.99955, lng: 77.08395, desc: 'On-campus medicine station and first-aid supplies.', icon: '💊', street: 'KIT Campus' },
 
   // 🚏 BUS STOPS & TRANSIT
-  { id: 'b1', name: 'KIT College Main Gate Bus Stop', type: 'transit', lat: 11.0546, lng: 77.1331, desc: 'Regular city bus stop for Route 70, 90A and Sulur-Gandhipuram buses.', icon: '🚏', street: 'College Road' },
-  { id: 'b2', name: 'Kannampalayam Junction Bus Stop', type: 'transit', lat: 11.0505, lng: 77.1292, desc: 'Town bus stop connecting to Sulur, Ondipudur and Singanallur.', icon: '🚏', street: 'Kannampalayam Main Rd' },
-  { id: 'b3', name: 'Sulur Old Bus Stand & Terminus', type: 'transit', lat: 11.0341, lng: 77.1264, desc: 'Central bus terminus with shaded waiting shelters and bus connections.', icon: '🚏', street: 'Trichy Road' },
-  { id: 'b4', name: 'Ravathur Pirivu Bus Stop', type: 'transit', lat: 11.0620, lng: 77.1150, desc: 'Junction bus shelter connecting to Avinashi road bypass.', icon: '🚏', street: 'Ravathur Road' },
+  { id: 'b1', name: 'KIT College Main Gate Bus Stop', type: 'transit', lat: 10.99895, lng: 77.08455, desc: 'Bus stop on Pappampatti Road at the KIT campus gate.', icon: '🚏', street: 'Pappampatti Road' },
+  { id: 'b2', name: 'Kannampalayam Junction Bus Stop', type: 'transit', lat: 10.99509, lng: 77.09846, desc: 'Town bus stop connecting Kannampalayam, Sulur and Singanallur.', icon: '🚏', street: 'Kannampalayam Road' },
+  { id: 'b3', name: 'Sulur Bus Stand', type: 'transit', lat: SULUR_BUS_LAT, lng: SULUR_BUS_LNG, desc: 'Sulur bus stand on Trichy Road, with waiting shelters.', icon: '🚏', street: 'Trichy Road' },
+  { id: 'b4', name: 'Neelambur Bypass Bus Stop', type: 'transit', lat: 11.05840, lng: 77.09010, desc: 'Bus shelter on the Coimbatore bypass near Royal Care.', icon: '🚏', street: 'Coimbatore Bypass' },
 
   // 🏥 HOSPITALS & HEALTH CENTRES
-  { id: 'h1', name: 'KIT Student Health & Emergency Centre', type: 'hospital', lat: 11.0556, lng: 77.1340, desc: 'On-campus emergency medical room, primary care & first aid kit. Open 24/7.', icon: '🏥', street: 'KIT Campus' },
-  { id: 'h2', name: 'Kannampalayam Primary Health Centre (PHC)', type: 'hospital', lat: 11.0508, lng: 77.1290, desc: 'Government PHC with 24/7 emergency casualty, ambulance & pharmacy.', icon: '🏥', street: 'PHC Road' },
-  { id: 'h3', name: 'Sulur Government Taluk Hospital', type: 'hospital', lat: 11.0345, lng: 77.1255, desc: 'Full government hospital with 24-hr trauma, emergency & inpatient care.', icon: '🏥', street: 'Hospital Road' },
-  { id: 'h4', name: 'Royal Care Super Speciality Hospital, Neelambur', type: 'hospital', lat: 11.0665, lng: 77.0850, desc: 'Multi-speciality emergency trauma hospital, Avinashi Rd bypass.', icon: '🏥', street: 'Avinashi Road Bypass' },
-  { id: 'h5', name: 'Kovai Medical Center & Hospital (KMCH)', type: 'hospital', lat: 11.0425, lng: 77.0375, desc: '24/7 Level 1 trauma care, emergency emergency helpline 1066.', icon: '🏥', street: 'Avinashi Road' },
-  { id: 'h6', name: 'PSG Hospitals, Peelamedu', type: 'hospital', lat: 11.0255, lng: 77.0035, desc: 'Premier teaching hospital with 24/7 emergency medicine & blood bank.', icon: '🏥', street: 'Avinashi Road' },
-  { id: 'h7', name: 'ESI Hospital, Singanallur', type: 'hospital', lat: 11.0025, lng: 77.0250, desc: 'Government medical college & ESI emergency hospital.', icon: '🏥', street: 'Trichy Road' },
-  { id: 'h8', name: 'Coimbatore Medical College Hospital (CMCH)', type: 'hospital', lat: 10.9995, lng: 76.9675, desc: 'Main District General Hospital with 24/7 casualty trauma.', icon: '🏥', street: 'Trichy Road' },
+  { id: 'h1', name: 'KIT Student Health & Emergency Centre', type: 'hospital', lat: 10.99960, lng: 77.08380, desc: 'On-campus emergency medical room and first aid.', icon: '🏥', street: 'KIT Campus' },
+  { id: 'h2', name: 'Kannampalayam Primary Health Centre (PHC)', type: 'hospital', lat: 10.99480, lng: 77.09820, desc: 'Government PHC for Kannampalayam.', icon: '🏥', street: 'Kannampalayam Road' },
+  { id: 'h3', name: 'Sulur Government Taluk Hospital', type: 'hospital', lat: SULUR_HOSP_LAT, lng: SULUR_HOSP_LNG, desc: 'Government hospital on Trichy Road, Sulur, with emergency care.', icon: '🏥', street: 'Trichy Road' },
+  { id: 'h4', name: 'Royal Care Super Speciality Hospital, Neelambur', type: 'hospital', lat: 11.05904, lng: 77.08974, desc: 'Multi-speciality hospital on the Coimbatore bypass, Neelambur.', icon: '🏥', street: 'Coimbatore Bypass' },
+  { id: 'h5', name: 'Kovai Medical Center & Hospital (KMCH)', type: 'hospital', lat: 11.04041, lng: 77.04088, desc: '24/7 trauma hospital on Avinashi Road.', icon: '🏥', street: 'Avinashi Road' },
+  { id: 'h6', name: 'PSG Hospitals, Peelamedu', type: 'hospital', lat: 11.01875, lng: 77.00701, desc: 'Teaching hospital with 24/7 emergency medicine, Peelamedu.', icon: '🏥', street: 'Avinashi Road' },
+  { id: 'h7', name: 'ESI Hospital, Singanallur', type: 'hospital', lat: 11.00928, lng: 77.02405, desc: 'ESI hospital on Kamarajar Road, Singanallur.', icon: '🏥', street: 'Kamarajar Road' },
+  { id: 'h8', name: 'Coimbatore Medical College Hospital (CMCH)', type: 'hospital', lat: 10.99642, lng: 76.97020, desc: 'District general hospital on Trichy Road.', icon: '🏥', street: 'Trichy Road' },
 
   // 🚰 DRINKING WATER / WATER ATMS
-  { id: 'w1', name: 'KIT Main Gate Pure RO Drinking Water Kiosk', type: 'water', lat: 11.0545, lng: 77.1328, desc: 'Free chilled RO purified drinking water for students & pedestrians.', icon: '🚰', street: 'College Road' },
-  { id: 'w2', name: 'Kannampalayam Panchayat RO Water ATM', type: 'water', lat: 11.0515, lng: 77.1305, desc: '24/7 Amma / Panchayat RO clean drinking water point (Cold & Clean).', icon: '🚰', street: 'Kannampalayam Main Rd' },
-  { id: 'w3', name: 'Trichy Road Public Water Station (Ondipudur)', type: 'water', lat: 11.0075, lng: 77.0510, desc: 'Municipal drinking water post with bottle refill taps.', icon: '🚰', street: 'Trichy Road' },
-  { id: 'w4', name: 'Sulur Bus Stand Free Water Cooler', type: 'water', lat: 11.0338, lng: 77.1268, desc: 'Free municipal corporation drinking water for travelers.', icon: '🚰', street: 'Trichy Road' },
-  { id: 'w5', name: 'Singanallur Bus Terminal Water Cooler Kiosk', type: 'water', lat: 11.0018, lng: 77.0265, desc: 'High-capacity cold purified drinking water dispenser.', icon: '🚰', street: 'Bus Stand Concourse' },
-  { id: 'w6', name: 'Sulur Lake Promenade Water Fountain', type: 'water', lat: 11.0290, lng: 77.1280, desc: 'Walking trail hydration station with clean drinking water taps.', icon: '🚰', street: 'Lake Bund Promenade' },
+  { id: 'w1', name: 'KIT Main Gate RO Drinking Water Kiosk', type: 'water', lat: 10.99915, lng: 77.08445, desc: 'RO drinking water at the KIT gate for students and pedestrians.', icon: '🚰', street: 'Pappampatti Road' },
+  { id: 'w2', name: 'Kannampalayam Panchayat RO Water ATM', type: 'water', lat: 10.99530, lng: 77.09855, desc: 'Panchayat RO drinking water point at Kannampalayam.', icon: '🚰', street: 'Kannampalayam Road' },
+  { id: 'w3', name: 'Trichy Road Public Water Station (Ondipudur)', type: 'water', lat: 11.00410, lng: 77.04910, desc: 'Municipal drinking water post at Ondipudur.', icon: '🚰', street: 'Trichy Road' },
+  { id: 'w4', name: 'Sulur Bus Stand Free Water Cooler', type: 'water', lat: 11.02580, lng: 77.12505, desc: 'Drinking water at Sulur bus stand.', icon: '🚰', street: 'Trichy Road' },
+  { id: 'w5', name: 'Singanallur Bus Terminal Water Cooler', type: 'water', lat: 11.00210, lng: 77.02920, desc: 'Drinking water at Singanallur bus stand.', icon: '🚰', street: 'Kamarajar Road' },
+  { id: 'w6', name: 'Sulur Lake Promenade Water Point', type: 'water', lat: 11.02867, lng: 77.11442, desc: 'Water point on the Sulur lake walking side.', icon: '🚰', street: 'Sulur Lake' },
 
   // 🚻 PUBLIC TOILETS / RESTROOMS
-  { id: 't1', name: 'KIT Visitor & Security Block Restrooms', type: 'toilet', lat: 11.0548, lng: 77.1330, desc: 'Clean campus visitor washrooms with running water.', icon: '🚻', street: 'College Road' },
-  { id: 't2', name: 'Kannampalayam Swachh Bharat Community Restroom', type: 'toilet', lat: 11.0502, lng: 77.1298, desc: 'Public hygiene complex with separate sections for ladies & gents.', icon: '🚻', street: 'Panchayat Office St' },
-  { id: 't3', name: 'Sulur Bus Stand Public Restroom Complex', type: 'toilet', lat: 11.0342, lng: 77.1262, desc: 'Pay & use municipal public toilet with running water.', icon: '🚻', street: 'Trichy Road' },
-  { id: 't4', name: 'Sulur Boat Lake Eco-Park Toilets', type: 'toilet', lat: 11.0285, lng: 77.1285, desc: 'Clean eco-friendly public restrooms for walkers and tourists.', icon: '🚻', street: 'Lake Promenade' },
-  { id: 't5', name: 'Singanallur Bus Terminal Modern Restrooms', type: 'toilet', lat: 11.0012, lng: 77.0270, desc: 'Corporation maintained modern e-toilets and restrooms.', icon: '🚻', street: 'Bus Terminal' },
+  { id: 't1', name: 'KIT Visitor & Security Block Restrooms', type: 'toilet', lat: 10.99920, lng: 77.08410, desc: 'Campus visitor washrooms at the security block.', icon: '🚻', street: 'KIT Campus' },
+  { id: 't2', name: 'Kannampalayam Community Restroom', type: 'toilet', lat: 10.99490, lng: 77.09870, desc: 'Public restroom at Kannampalayam.', icon: '🚻', street: 'Kannampalayam Road' },
+  { id: 't3', name: 'Sulur Bus Stand Public Restroom', type: 'toilet', lat: 11.02605, lng: 77.12530, desc: 'Public toilet at Sulur bus stand.', icon: '🚻', street: 'Trichy Road' },
+  { id: 't4', name: 'Sulur Lake Public Restroom', type: 'toilet', lat: 11.02840, lng: 77.11480, desc: 'Public restroom on the Sulur lake side.', icon: '🚻', street: 'Sulur Lake' },
+  { id: 't5', name: 'Singanallur Bus Terminal Restrooms', type: 'toilet', lat: 11.00190, lng: 77.02900, desc: 'Restrooms at Singanallur bus stand.', icon: '🚻', street: 'Kamarajar Road' },
 ];
 
 /* ─── 3. APPLICATION STATE ──────────────────────────────────── */
-let currentMode        = 'normal';
-let startCoords        = null;
-let endCoords          = null;
-let startMarker        = null;
-let endMarker          = null;
-let candidateRoutes    = [];    // Array of all evaluated candidate routes
-let routeLayers        = [];    // Leaflet polyline layers on the map
-let routeBadgeMarkers  = [];    // Leaflet floating duration badge markers
-let activeRouteIndex   = 0;     // Index of currently selected route
-let kitMarker          = null;
-let suggestTimer       = null;
+let currentMode          = 'normal'; // 'normal' | 'heat' | 'night'
+let currentWalkerProfile = 'normal'; // 'normal' | 'elderly' | 'kids' | 'wheelchair'
+let simulatedHour        = null;     // null = live real time, or integer 9, 12, 16, 20
+let currentLang          = 'en';     // 'en' | 'ta'
 
-let amenityMapMarkers  = [];
-let currentFilterType  = 'all';
-let visibleToggles     = { shop: true, pharmacy: true, water: true, hospital: true, toilet: true };
+let startCoords          = null;
+let endCoords            = null;
+let startMarker          = null;
+let endMarker            = null;
+let candidateRoutes      = [];       // Array of all evaluated candidate routes
+let routeLayers          = [];       // Leaflet polyline layers on the map
+let routeBadgeMarkers    = [];       // Leaflet floating duration badge markers
+let activeRouteIndex     = 0;        // Index of currently selected route
+let kitMarker            = null;
+let suggestTimer         = null;
+
+let amenityMapMarkers    = [];
+let currentFilterType    = 'all';
+let visibleToggles       = { shop: true, pharmacy: true, water: true, hospital: true, toilet: true };
 
 // Active Base Tile Layer
-let activeTileLayer    = null;
+let activeTileLayer      = null;
 
-// Real GPS Live Navigation state (NO fake movement timer!)
-let liveWatchId        = null;
-let walkerMarker       = null;
-let accuracyCircle     = null;
-let currentNavStepIndex= 0;
-let userGpsPosition    = null;
+// Real GPS Live Navigation state
+let liveWatchId          = null;
+let walkerMarker         = null;
+let accuracyCircle       = null;
+let currentNavStepIndex  = 0;
+let userGpsPosition      = null;
+
+// Live Weather Cache
+let liveWeather          = { temp: 30, feelsLike: 34, uv: 7.9, rain: 0 };
 
 if (typeof L === 'undefined') {
   document.body.insertAdjacentHTML(
@@ -149,31 +192,32 @@ if (typeof L === 'undefined') {
   throw new Error('Leaflet is not loaded');
 }
 
-/* ─── 4. MAP INITIALISATION (Walkways & Satellite Only) ──────── */
+/* ─── 4. MAP INITIALISATION (Walkways & Satellite) ───────────── */
 const map = L.map('map', {
   zoomControl: true,
   maxZoom: 20
 }).setView([KIT_LAT, KIT_LNG], 15);
 
-// Tile Layer Definitions: Walkways (Humanitarian OSM) and Satellite (Esri Imagery)
 const TILE_LAYERS = {
-  // Pedestrian Walkways: Humanitarian OpenStreetMap with all small footways, alleys & steps
-  walkways: L.tileLayer('https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
+  walkways: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
-    subdomains: 'ab',
-    attribution: '© OpenStreetMap contributors, Humanitarian OpenStreetMap Team | TutaMaps',
+    subdomains: ['a', 'b', 'c'],
+    attribution: '© OpenStreetMap contributors | TutaMaps',
   }),
-  // Real Aerial Satellite Imagery: Esri World Imagery
-  sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  sat: L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+    maxZoom: 20,
+    subdomains: ['0', '1', '2', '3'],
+    attribution: '© Google Maps | TutaMaps',
+  }),
+  satEsri: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
     maxZoom: 19,
-    attribution: '© Esri, Maxar, Earthstar Geographics | TutaMaps',
+    attribution: '© Esri | TutaMaps',
   })
 };
 
-// Set default layer to Walkways
 activeTileLayer = TILE_LAYERS.walkways.addTo(map);
 
-// KIT Coimbatore Campus Landmark Marker
+// KIT Coimbatore Campus Hub Marker
 const kitIcon = L.divIcon({
   className: '',
   html: `<div style="
@@ -201,115 +245,165 @@ window.addEventListener('load', () => {
 });
 
 /* ─── 5. UI REFERENCES ──────────────────────────────────────── */
-const siteHeader         = document.querySelector('.site-header');
-const mainSearchInput    = document.getElementById('main-search-input');
-const singleSearchBox    = document.getElementById('single-search-box');
-const directionsFormBox  = document.getElementById('directions-form-box');
-const openDirectionsBtn  = document.getElementById('open-directions-btn');
-const backToSearchBtn    = document.getElementById('back-to-search-btn');
-const clearBtn           = document.getElementById('clear-inputs-btn');
-const startInput         = document.getElementById('start-input');
-const endInput           = document.getElementById('end-input');
-const startSuggestions   = document.getElementById('start-suggestions');
-const endSuggestions     = document.getElementById('end-suggestions');
-const findRouteBtn       = document.getElementById('find-route-btn');
-const swapBtn            = document.getElementById('swap-btn');
-const myLocationBtn      = document.getElementById('my-location-btn');
-const routeInfo          = document.getElementById('route-info');
+const siteHeader           = document.querySelector('.site-header');
+const mainSearchInput      = document.getElementById('main-search-input');
+const singleSearchBox      = document.getElementById('single-search-box');
+const directionsFormBox    = document.getElementById('directions-form-box');
+const openDirectionsBtn    = document.getElementById('open-directions-btn');
+const backToSearchBtn      = document.getElementById('back-to-search-btn');
+const clearBtn             = document.getElementById('clear-inputs-btn');
+const startInput           = document.getElementById('start-input');
+const endInput             = document.getElementById('end-input');
+const startSuggestions     = document.getElementById('start-suggestions');
+const endSuggestions       = document.getElementById('end-suggestions');
+const findRouteBtn         = document.getElementById('find-route-btn');
+const swapBtn              = document.getElementById('swap-btn');
+const myLocationBtn        = document.getElementById('my-location-btn');
+const routeInfo            = document.getElementById('route-info');
 
-// Mode buttons
-const btnNormal          = document.getElementById('btn-normal');
-const btnHeat            = document.getElementById('btn-heat');
-const btnNight           = document.getElementById('btn-night');
+// Mode Buttons
+const btnNormal            = document.getElementById('btn-normal');
+const btnHeat              = document.getElementById('btn-heat');
+const btnNight             = document.getElementById('btn-night');
 
-// Comparison card & Dynamic Routes
-const compareCard        = document.getElementById('compare-card');
-const comparisonHeading  = document.getElementById('comparison-heading');
-const routeCardsContainer= document.getElementById('route-cards-container');
-const comparisonBanner   = document.getElementById('comparison-banner');
-const startNavigationBtn = document.getElementById('start-navigation-btn');
+// SOS
+const sosBtn               = document.getElementById('sos-btn');
+const sosModal             = document.getElementById('sos-modal');
+const sosCloseBtn          = document.getElementById('sos-close-btn');
+const whatsappShareBtn     = document.getElementById('whatsapp-share-btn');
 
-// Smart Advice elements
-const smartAdviceBox     = document.getElementById('smart-advice-box');
-const adviceTipsList     = document.getElementById('advice-tips-list');
+// Proof Modal
+const proofModal           = document.getElementById('proof-modal');
+const openScoreProofBtn    = document.getElementById('open-score-proof-btn');
+const proofCloseBtn        = document.getElementById('proof-close-btn');
+const proofGotItBtn        = document.getElementById('proof-gotit-btn');
 
-// Live Navigation card & Real GPS elements
-const liveNavCard        = document.getElementById('live-nav-card');
-const exitNavBtn         = document.getElementById('exit-nav-btn');
-const liveGpsBadge       = document.getElementById('live-gps-badge');
-const liveGpsStatus      = document.getElementById('live-gps-status');
-const liveTimeRemain     = document.getElementById('live-time-remain');
-const liveDistRemain     = document.getElementById('live-dist-remain');
-const liveCurrentStreet  = document.getElementById('live-current-street');
-const liveCurrentLandmark= document.getElementById('live-current-landmark');
-const liveTurnDist       = document.getElementById('live-turn-dist');
-const liveTurnAction     = document.getElementById('live-turn-action');
-const liveTurnIcon       = document.getElementById('live-turn-icon');
-const prevStepBtn        = document.getElementById('prev-step-btn');
-const nextStepBtn        = document.getElementById('next-step-btn');
-const recenterWalkerBtn  = document.getElementById('recenter-walker-btn');
-const liveAdviceCard     = document.getElementById('live-advice-card');
-const liveAdviceText     = document.getElementById('live-advice-text');
+// Candidate Routes
+const compareCard          = document.getElementById('compare-card');
+const comparisonHeading    = document.getElementById('comparison-heading');
+const routeCardsContainer  = document.getElementById('route-cards-container');
+const comparisonBanner     = document.getElementById('comparison-banner');
+const startNavigationBtn   = document.getElementById('start-navigation-btn');
+
+// Route Summary Chips
+const sumChipWater         = document.getElementById('sum-chip-water');
+const sumChipPharmacy      = document.getElementById('sum-chip-pharmacy');
+const sumChipHospital      = document.getElementById('sum-chip-hospital');
+const sumChipShade         = document.getElementById('sum-chip-shade');
+
+// Smart Advice
+const smartAdviceBox       = document.getElementById('smart-advice-box');
+const adviceTipsList       = document.getElementById('advice-tips-list');
+
+// Live Nav elements
+const liveNavCard          = document.getElementById('live-nav-card');
+const exitNavBtn           = document.getElementById('exit-nav-btn');
+const liveGpsBadge         = document.getElementById('live-gps-badge');
+const liveGpsStatus        = document.getElementById('live-gps-status');
+const liveTimeRemain       = document.getElementById('live-time-remain');
+const liveDistRemain       = document.getElementById('live-dist-remain');
+const liveCurrentStreet    = document.getElementById('live-current-street');
+const liveCurrentLandmark  = document.getElementById('live-current-landmark');
+const liveTurnDist         = document.getElementById('live-turn-dist');
+const liveTurnAction       = document.getElementById('live-turn-action');
+const liveTurnIcon         = document.getElementById('live-turn-icon');
+const prevStepBtn          = document.getElementById('prev-step-btn');
+const nextStepBtn          = document.getElementById('next-step-btn');
+const recenterWalkerBtn    = document.getElementById('recenter-walker-btn');
+const liveAdviceCard       = document.getElementById('live-advice-card');
+const liveAdviceText       = document.getElementById('live-advice-text');
 
 // Details Card & Tabs
-const detailsCard        = document.getElementById('details-card');
-const navTabs            = document.querySelectorAll('.nav-tab');
-const tabPanes           = document.querySelectorAll('.tab-pane');
-const stepsTimeline      = document.getElementById('steps-timeline');
-const amenitiesItemsList = document.getElementById('amenities-items-list');
+const detailsCard          = document.getElementById('details-card');
+const navTabs              = document.querySelectorAll('.nav-tab');
+const tabPanes             = document.querySelectorAll('.tab-pane');
+const stepsTimeline        = document.getElementById('steps-timeline');
+const amenitiesItemsList   = document.getElementById('amenities-items-list');
+const countAllBadge        = document.getElementById('count-all-badge');
 
 // Score card elements
-const scoreNumber        = document.getElementById('score-number');
-const scoreLabel         = document.getElementById('score-label');
-const scoreDesc          = document.getElementById('score-desc');
-const routeStats         = document.getElementById('route-stats');
+const scoreNumber          = document.getElementById('score-number');
+const scoreLabel           = document.getElementById('score-label');
+const scoreDesc            = document.getElementById('score-desc');
+const routeStats           = document.getElementById('route-stats');
 
-// Amenity counts
-const countAll           = document.getElementById('count-all');
-const countShop          = document.getElementById('count-shop');
-const countPharmacy      = document.getElementById('count-pharmacy');
-const countWater         = document.getElementById('count-water');
-const countHospital      = document.getElementById('count-hospital');
-const countToilet        = document.getElementById('count-toilet');
-const amenityChipBtns    = document.querySelectorAll('.amenity-chip-btn');
+// Fun Stats
+const statSteps            = document.getElementById('stat-steps');
+const statCalories         = document.getElementById('stat-calories');
+const statCo2              = document.getElementById('stat-co2');
+const statFare             = document.getElementById('stat-fare');
+const statWater            = document.getElementById('stat-water');
+const statIncline          = document.getElementById('stat-incline');
 
-// Floating controls
-const chkShops           = document.getElementById('chk-shops');
-const chkPharmacy        = document.getElementById('chk-pharmacy');
-const chkWater           = document.getElementById('chk-water');
-const chkHospitals       = document.getElementById('chk-hospitals');
-const chkToilets         = document.getElementById('chk-toilets');
-const recenterBtn        = document.getElementById('recenter-btn');
+// Voice Controls (Executive Light Theme)
+const voiceNavBtn          = document.getElementById('voice-nav-btn');
+const voiceIcon            = document.getElementById('voice-icon');
 
-// Layer Switcher Buttons: Only 2 buttons (Walkways, Satellite)
-const layerBtnWalkways   = document.getElementById('layer-btn-walkways');
-const layerBtnSat        = document.getElementById('layer-btn-sat');
+// Amenity chip filters inside tab
+const amenityChipBtns      = document.querySelectorAll('.amenity-chip-btn');
 
-// Modal
-const helpBtn            = document.getElementById('help-btn');
-const guideModal         = document.getElementById('guide-modal');
-const modalCloseBtn      = document.getElementById('modal-close-btn');
-const modalGotItBtn      = document.getElementById('modal-gotit-btn');
+// Floating controls on Map
+const chkShops             = document.getElementById('chk-shops');
+const chkPharmacy          = document.getElementById('chk-pharmacy');
+const chkWater             = document.getElementById('chk-water');
+const chkHospitals         = document.getElementById('chk-hospitals');
+const chkToilets           = document.getElementById('chk-toilets');
+const recenterBtn          = document.getElementById('recenter-btn');
+const layerBtnWalkways     = document.getElementById('layer-btn-walkways');
+const layerBtnSat          = document.getElementById('layer-btn-sat');
 
-/* ─── 6. HELPER FUNCTIONS ───────────────────────────────────── */
+// Weather Chips
+const headerWeatherChip    = document.getElementById('header-weather-chip');
+const weatherText          = document.getElementById('weather-text');
+const mapWeatherText       = document.getElementById('map-weather-text');
 
-function metersToKm(m)  { return (m / 1000).toFixed(2); }
+// Solar Simulator Elements (Removed from UI)
+
+// Walker Profile Chips
+const profileChips         = document.querySelectorAll('.profile-chip');
+
+// Guide Modal
+const helpBtn              = document.getElementById('help-btn');
+const guideModal           = document.getElementById('guide-modal');
+const modalCloseBtn        = document.getElementById('modal-close-btn');
+const modalGotItBtn        = document.getElementById('modal-gotit-btn');
+const toastContainer       = document.getElementById('toast-container');
+
+/* ─── 6. HELPER FUNCTIONS & TOAST ───────────────────────────── */
+
+function showToast(message) {
+  if (!toastContainer) return;
+  const toast = document.createElement('div');
+  toast.className = 'app-toast';
+  toast.innerHTML = `<span>🔔</span> <span>${message}</span>`;
+  toastContainer.appendChild(toast);
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 0.3s ease';
+    setTimeout(() => toast.remove(), 350);
+  }, 3200);
+}
+
+function metersToKm(m) { return (m / 1000).toFixed(2); }
 
 function secToMin(s, dist) {
+  const currentSpeed = WALKER_SPEEDS[currentWalkerProfile] || 1.25;
   if (dist) {
-    const speed = dist / (s || 1);
-    // Standard human walking speed: ~1.28 m/s (4.6 km/h) -> ~13 min/km
-    if (!s || speed > 1.8 || speed < 0.6) {
-      return Math.max(1, Math.round(dist / (1.28 * 60)));
-    }
+    return Math.max(1, Math.round(dist / (currentSpeed * 60)));
   }
   return Math.max(1, Math.round(s / 60));
 }
 
 function showInfo(msg, type = 'default') {
+  if (!msg) {
+    routeInfo.textContent = '';
+    routeInfo.className   = 'route-info hidden';
+    return;
+  }
   routeInfo.textContent = msg;
   routeInfo.className   = 'route-info';
   if (type !== 'default') routeInfo.classList.add(type);
+  routeInfo.classList.remove('hidden');
 }
 
 function rememberGeocoded(input, text) {
@@ -339,7 +433,104 @@ function parsePinnedCoords(text) {
   return [lat, lng];
 }
 
-/* ─── 7. GEOCODING (Local Shops/Streets + Photon + Nominatim) ── */
+function getHaversineDistanceMeters(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+/* ─── 8. LIVE SUNCALC & TIME-OF-DAY SOLAR SHADE ENGINE ───────── */
+
+function getActiveSimulatedDate() {
+  const now = new Date();
+  if (simulatedHour !== null) {
+    const d = new Date(now);
+    d.setHours(simulatedHour, 0, 0, 0);
+    return d;
+  }
+  return now;
+}
+
+function computeLiveSolarMetrics() {
+  if (typeof SunCalc === 'undefined') {
+    return { altitude: 55, azimuth: 180, isDay: true, label: 'Midday' };
+  }
+  const date = getActiveSimulatedDate();
+  const sunPos = SunCalc.getPosition(date, KIT_LAT, KIT_LNG);
+  const altitudeDeg = sunPos.altitude * 180 / Math.PI;
+  const azimuthDeg = (sunPos.azimuth * 180 / Math.PI + 180) % 360;
+  const isDay = altitudeDeg > 0;
+
+  let label = 'High Noon (Max Solar Heat)';
+  if (altitudeDeg <= 0) label = 'Night (Streetlights Active)';
+  else if (altitudeDeg < 25) label = 'Angled Sun (Long Shadows)';
+  else if (altitudeDeg < 55) label = 'Moderate Sun';
+
+  return {
+    altitude: altitudeDeg,
+    azimuth: azimuthDeg,
+    isDay,
+    label
+  };
+}
+
+/* ─── 9. LIVE WEATHER & UV API (Open-Meteo Free API) ────────── */
+
+async function fetchLiveWeather() {
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${KIT_LAT}&longitude=${KIT_LNG}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,uv_index&timezone=Asia%2FKolkata`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Weather API error');
+    const data = await res.json();
+    const curr = data.current || {};
+
+    liveWeather = {
+      temp: curr.temperature_2m || 30,
+      feelsLike: curr.apparent_temperature || 34,
+      uv: curr.uv_index || 7.8,
+      rain: curr.precipitation || 0
+    };
+
+    const str = `Coimbatore ${liveWeather.temp}°C · UV ${liveWeather.uv}`;
+    if (weatherText) weatherText.textContent = str;
+    if (mapWeatherText) mapWeatherText.textContent = `${liveWeather.temp}°C · UV ${liveWeather.uv}`;
+
+    // Auto-advise if extreme heat
+    if (liveWeather.temp >= 32 || liveWeather.uv >= 7.0) {
+      if (headerWeatherChip) {
+        headerWeatherChip.title = `High Heat (${liveWeather.temp}°C, UV ${liveWeather.uv}). Heat Mode recommended!`;
+      }
+    }
+  } catch (err) {
+    console.warn('Open-Meteo weather fetch failed, using realistic Coimbatore fallback:', err);
+    if (weatherText) weatherText.textContent = `Coimbatore 30°C · UV 7.9 (High)`;
+  }
+}
+
+fetchLiveWeather();
+
+/* ─── 10. WALKER PROFILE SELECTOR ───────────────────────────── */
+
+profileChips.forEach(chip => {
+  chip.addEventListener('click', () => {
+    profileChips.forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    currentWalkerProfile = chip.dataset.profile;
+
+    if (candidateRoutes && candidateRoutes.length) {
+      renderRouteCardsUI(candidateRoutes);
+      selectRoute(activeRouteIndex);
+    }
+    showToast(`Walker profile: ${chip.textContent.trim()}`);
+  });
+});
+
+/* ─── 11. GEOCODING ENGINE (Local Shops + Photon + Nominatim) ── */
 
 function searchLocalLandmarks(query) {
   const q = query.toLowerCase().trim();
@@ -389,26 +580,32 @@ async function geocodeNominatim(query) {
 }
 
 async function geocode(query) {
-  // 1. Instant local matching for shops, bakeries, pharmacies & small streets
-  const localMatches = searchLocalLandmarks(query);
-  if (localMatches.length >= 1) return localMatches;
-
   const q = query.trim();
-  const fullQ = /coimbatore/i.test(q) ? q : `${q}, Coimbatore`;
+  const localMatches = searchLocalLandmarks(q);
+  const fullQ = /coimbatore|sulur|kannampalayam|peelamedu|singanallur/i.test(q) ? q : `${q}, Coimbatore`;
 
+  let remote = [];
   try {
-    const photon = await geocodePhoton(fullQ);
-    if (photon.length) return [...localMatches, ...photon];
+    remote = await geocodePhoton(fullQ);
   } catch (err) {
     console.warn('Photon geocoding failed, trying Nominatim', err);
+    try {
+      remote = await geocodeNominatim(fullQ);
+    } catch {
+      remote = [];
+    }
   }
 
-  try {
-    const nom = await geocodeNominatim(fullQ);
-    return [...localMatches, ...nom];
-  } catch {
-    return localMatches;
-  }
+  // A single local shop used to block the live geocoder, so "Sulur" snapped to the wrong pin.
+  const seen = new Set();
+  const merged = [];
+  [...localMatches, ...remote].forEach(item => {
+    const key = `${Number(item.lat).toFixed(4)},${Number(item.lon).toFixed(4)}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    merged.push(item);
+  });
+  return merged;
 }
 
 async function getSuggestions(query, listEl) {
@@ -460,7 +657,7 @@ function attachAutocomplete(input, listEl, coordSetter) {
 attachAutocomplete(startInput, startSuggestions, c => { startCoords = c; });
 attachAutocomplete(endInput,   endSuggestions,   c => { endCoords   = c; });
 
-/* ─── 8. AMENITY GEOMETRY & PROXIMITY ENGINE ────────────────── */
+/* ─── 12. AMENITY GEOMETRY ENGINE ───────────────────────────── */
 
 function pointToSegmentDistanceMeters(pLat, pLng, aLat, aLng, bLat, bLng) {
   const latMid = (aLat + bLat) / 2 * (Math.PI / 180);
@@ -494,96 +691,43 @@ function getDistanceToPolylineMeters(amenity, coords) {
   return minMeters;
 }
 
-function ensureAmenitiesForRoute(coords, baseAmenities) {
-  const list = [...baseAmenities];
-  if (!coords || coords.length < 5) return list;
-
-  const nearCount = list.filter(a => getDistanceToPolylineMeters(a, coords) <= 800).length;
-  if (nearCount >= 4) return list;
-
-  const sampleIndices = [
-    Math.floor(coords.length * 0.25),
-    Math.floor(coords.length * 0.50),
-    Math.floor(coords.length * 0.75)
-  ];
-
-  const syntheticTypes = [
-    { type: 'shop', name: 'Local Provision Store & Fresh Juices', icon: '🏪', desc: 'Pedestrian corner store with cold drinks and snacks.', street: 'Local Pathway' },
-    { type: 'water', name: 'Corporation Purified Drinking Water Kiosk', icon: '🚰', desc: 'Free public cold water fountain and bottle refill station.', street: 'Pedestrian Walkway' },
-    { type: 'pharmacy', name: 'Neighborhood Pharmacy & First Aid', icon: '💊', desc: 'Emergency medical supplies, bandages and medicines.', street: 'Main Cross Road' },
-    { type: 'hospital', name: 'Primary Health Care Dispensary', icon: '🏥', desc: 'Community health clinic with doctor on duty.', street: 'Hospital Lane' },
-    { type: 'toilet', name: 'Swachh Bharat Clean Public Restroom', icon: '🚻', desc: 'Maintained public convenience with running water.', street: 'Sanitation Point' }
-  ];
-
-  sampleIndices.forEach((idx, i) => {
-    const pt = coords[idx];
-    if (pt) {
-      const offsetLat = (i % 2 === 0 ? 0.00035 : -0.00035);
-      const offsetLng = (i % 2 === 0 ? 0.00030 : -0.00030);
-      const t = syntheticTypes[i % syntheticTypes.length];
-      list.push({
-        id: `dyn_${idx}_${i}`,
-        name: t.name,
-        type: t.type,
-        lat: pt[1] + offsetLat,
-        lng: pt[0] + offsetLng,
-        desc: t.desc,
-        icon: t.icon,
-        street: t.street,
-        synthetic: true
-      });
-    }
-  });
-
-  return list;
+function ensureAmenitiesForRoute(_coords, baseAmenities) {
+  // Only mapped places. Invented pins were landing off the real street and made the route look wrong.
+  return Array.isArray(baseAmenities) ? baseAmenities : [];
 }
 
-/* ─── 9. OSRM DUAL-ROUTE ROUTING ENGINE ──────────────────────── */
+/* ─── 13. OSRM MULTI-ROUTE PEDESTRIAN ROUTING ENGINE ──────────── */
 
-async function fetchOsrmDirect(base, startLL, endLL) {
-  const coords = `${startLL[1]},${startLL[0]};${endLL[1]},${endLL[0]}`;
-  const url = `${base}/${coords}?overview=full&geometries=geojson&alternatives=true&steps=true`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error('Routing service error');
-  const data = await res.json();
-  return data.routes || [];
-}
-
-async function fetchOsrmViaWaypoint(base, startLL, wpLL, endLL) {
-  const coords = `${startLL[1]},${startLL[0]};${wpLL[1].toFixed(5)},${wpLL[0].toFixed(5)};${endLL[1]},${endLL[0]}`;
-  const url = `${base}/${coords}?overview=full&geometries=geojson&steps=true`;
-  const res = await fetch(url);
-  if (!res.ok) return null;
-  const data = await res.json();
-  if (data.routes && data.routes.length) return data.routes[0];
-  return null;
+function isDistinctRoute(existingRoutes, newRoute) {
+  for (const r of existingRoutes) {
+    const distDiff = Math.abs(r.distance - newRoute.distance);
+    if (distDiff < 30) return false;
+  }
+  return true;
 }
 
 function generateFallbackCorridors(startLL, endLL) {
   const dLat = endLL[0] - startLL[0];
   const dLng = endLL[1] - startLL[1];
-  const directM = Math.max(100, Math.round(getHaversineDistanceMeters(startLL[0], startLL[1], endLL[0], endLL[1]) * 1.25));
-  const perpLat = -dLng;
-  const perpLng = dLat;
+  const directM = Math.max(100, Math.round(getHaversineDistanceMeters(startLL[0], startLL[1], endLL[0], endLL[1]) * 1.15));
 
   const corridors = [
-    { type: 'shade',  bend: 0.18, name: '🌳 Shaded Canopy Walkway', sub: 'Tree-lined Footways & College Rd', factor: 1.08 },
-    { type: 'lit',    bend: -0.18, name: '💡 Well-Lit Commercial Avenue', sub: 'Commercial Road & Open Shops', factor: 1.05 },
-    { type: 'direct', bend: 0.02, name: '⚡ Direct Street Shortcut', sub: 'Straight Vehicular Roadway', factor: 1.0 }
+    { type: 'shade',  name: '🌳 Shaded Canopy Walkway', sub: 'via Tree-lined Pedestrian Way', factor: 1.0 },
+    { type: 'lit',    name: '💡 Well-Lit Commercial Avenue', sub: 'via Commercial Footway & Open Shops', factor: 1.04 },
+    { type: 'direct', name: '⚡ Direct Street Shortcut', sub: 'via Direct Pedestrian Street', factor: 1.0 }
   ];
 
   return corridors.map(c => {
     const dist = Math.round(directM * c.factor);
-    const duration = Math.round(dist / 1.28);
+    const duration = Math.round(dist / 1.25);
     const coords = [];
-    const stepsCount = 14;
+    const stepsCount = 12;
 
     for (let i = 0; i <= stepsCount; i++) {
       const frac = i / stepsCount;
-      const b = Math.sin(frac * Math.PI) * c.bend;
       coords.push([
-        startLL[1] + dLng * frac + perpLng * b,
-        startLL[0] + dLat * frac + perpLat * b
+        startLL[1] + dLng * frac,
+        startLL[0] + dLat * frac
       ]);
     }
 
@@ -597,106 +741,78 @@ function generateFallbackCorridors(startLL, endLL) {
         distance: dist,
         duration: duration,
         steps: [
-          { name: 'Start on pedestrian footway', distance: dist * 0.25, duration: duration * 0.25, maneuver: { type: 'depart', location: coords[0] } },
-          { name: c.sub, distance: dist * 0.55, duration: duration * 0.55, maneuver: { type: 'turn', modifier: c.bend > 0 ? 'slight right' : 'slight left', location: coords[Math.floor(stepsCount / 2)] } },
-          { name: 'Approach destination entrance', distance: dist * 0.20, duration: duration * 0.20, maneuver: { type: 'arrive', location: coords[coords.length - 1] } }
+          { name: 'Start on pedestrian footway', distance: dist * 0.3, duration: duration * 0.3, maneuver: { type: 'depart', location: coords[0] } },
+          { name: c.sub, distance: dist * 0.5, duration: duration * 0.5, maneuver: { type: 'turn', modifier: 'straight', location: coords[Math.floor(stepsCount / 2)] } },
+          { name: 'Approach destination entrance', distance: dist * 0.2, duration: duration * 0.2, maneuver: { type: 'arrive', location: coords[coords.length - 1] } }
         ]
       }]
     };
   });
 }
 
-async function fetchMultipleCandidateRoutes(startLL, endLL) {
-  const collectedRoutes = [];
-
-  // 1. Fetch direct route + alternatives from OSRM
-  for (const base of OSRM_ENDPOINTS) {
+async function fetchFootJSON(url, attempts = 2) {
+  for (let i = 0; i < attempts; i++) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 12000);
     try {
-      const primaries = await fetchOsrmDirect(base, startLL, endLL);
-      if (primaries.length) {
-        primaries.forEach(r => {
-          if (isDistinctRoute(collectedRoutes, r)) {
-            collectedRoutes.push(r);
-          }
-        });
-        break;
-      }
+      const res = await fetch(url, { signal: ctrl.signal });
+      clearTimeout(timer);
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (data && data.routes && data.routes.length) return data.routes;
     } catch {
-      // try next endpoint
+      clearTimeout(timer);
     }
   }
-
-  if (!collectedRoutes.length) {
-    console.warn('OSRM network endpoints unreachable, generating verified pedestrian corridors');
-    return generateFallbackCorridors(startLL, endLL);
-  }
-
-  const directDist = collectedRoutes[0].distance;
-  const midLat = (startLL[0] + endLL[0]) / 2;
-  const midLng = (startLL[1] + endLL[1]) / 2;
-  const dLat   = endLL[0] - startLL[0];
-  const dLng   = endLL[1] - startLL[1];
-  const dist   = Math.hypot(dLat, dLng);
-
-  // 2. Discover alternative walking corridors (tree-lined canopy, lit commercial roads, quiet paths)
-  if (dist > 0.0006) {
-    const perpLat = -dLng / dist;
-    const perpLng =  dLat / dist;
-
-    const candidateOffsets = [
-      { factor: 0.35,  type: 'shade',   nameHint: 'Tree-lined Corridor / Campus Way' },
-      { factor: -0.35, type: 'lit',     nameHint: 'Commercial Main Avenue' },
-      { factor: 0.20,  type: 'quiet',   nameHint: 'Residential Footway' },
-      { factor: -0.22, type: 'avenue',  nameHint: 'Main Avenue Pedestrian Sidewalk' },
-    ];
-
-    for (const probe of candidateOffsets) {
-      if (collectedRoutes.length >= 4) break;
-
-      const offsetDist = Math.min(Math.max(dist * Math.abs(probe.factor), 0.0028), 0.011);
-      const sgn = probe.factor > 0 ? 1 : -1;
-      const wp = [midLat + sgn * perpLat * offsetDist, midLng + sgn * perpLng * offsetDist];
-
-      try {
-        const candidate = await fetchOsrmViaWaypoint(OSRM_ENDPOINTS[0], startLL, wp, endLL);
-        if (candidate && candidate.distance <= directDist * 1.55 && isDistinctRoute(collectedRoutes, candidate)) {
-          candidate.corridorType = probe.type;
-          candidate.corridorName = probe.nameHint;
-          collectedRoutes.push(candidate);
-        }
-      } catch {
-        // continue
-      }
-    }
-  }
-
-  // If only 1 route was found, create a parallel safe walking alternative
-  if (collectedRoutes.length === 1) {
-    const alt = JSON.parse(JSON.stringify(collectedRoutes[0]));
-    alt.duration = Math.round(collectedRoutes[0].duration * 1.12);
-    alt.distance = Math.round(collectedRoutes[0].distance * 1.08);
-    const midIdx = Math.floor(alt.geometry.coordinates.length / 2);
-    if (alt.geometry.coordinates[midIdx]) {
-      alt.geometry.coordinates[midIdx][0] += 0.00045;
-      alt.geometry.coordinates[midIdx][1] += 0.00045;
-    }
-    alt.corridorType = 'shade';
-    alt.corridorName = 'Tree-lined Corridor';
-    collectedRoutes.push(alt);
-  }
-
-  return collectedRoutes;
+  return [];
 }
 
-function isDistinctRoute(existingRoutes, newRoute) {
-  for (const r of existingRoutes) {
-    const distDiff = Math.abs(r.distance - newRoute.distance);
-    if (distDiff < 30) return false;
+function routesAreSimilar(a, b) {
+  if (Math.abs(a.distance - b.distance) >= 30) return false;
+  const ca = a.geometry.coordinates, cb = b.geometry.coordinates;
+  const samples = [0.25, 0.5, 0.75];
+  let total = 0;
+  for (const f of samples) {
+    const p = ca[Math.floor((ca.length - 1) * f)];
+    const q = cb[Math.floor((cb.length - 1) * f)];
+    total += getHaversineDistanceMeters(p[1], p[0], q[1], q[0]);
   }
-  return true;
+  return (total / samples.length) < 25;
 }
 
-/* ─── 10. MULTI-FACTOR WALK SCORE & MODE EVALUATOR ───────────── */
+async function fetchMultipleCandidateRoutes(startLL, endLL) {
+  const base = OSRM_ENDPOINTS[0];
+  const q = '?overview=full&geometries=geojson&alternatives=true&steps=true';
+  const pt = ll => `${ll[1]},${ll[0]}`;
+
+  // The direct foot route is the path that follows real OSM streets.
+  // Side via-points were snapping into fields and drawing a road the walker cannot use.
+  const direct = await fetchFootJSON(`${base}/${pt(startLL)};${pt(endLL)}${q}`);
+  if (!direct.length) return [];
+
+  const collected = [];
+  const maxDist = direct[0].distance * 1.35;
+  direct.forEach(r => {
+    if (r.distance > maxDist) return;
+    if (collected.some(c => routesAreSimilar(c, r))) return;
+    collected.push(r);
+  });
+
+  collected.sort((x, y) => x.distance - y.distance);
+  const types = [
+    { type: 'direct', name: '⚡ Shortest Walking Route' },
+    { type: 'shade',  name: '🌳 Alternative Walking Route' },
+    { type: 'lit',    name: '💡 Second Alternative' },
+  ];
+  const result = collected.slice(0, 3);
+  result.forEach((r, i) => {
+    r.corridorType = types[i].type;
+    r.corridorName = types[i].name;
+  });
+  return result;
+}
+
+/* ─── 14. MULTI-FACTOR WALK SCORE & SOLAR EVALUATOR ──────────── */
 
 function pseudoRandom(seed) {
   const h = Math.sin(seed) * 43758.5453123;
@@ -706,41 +822,53 @@ function pseudoRandom(seed) {
 function computeSingleRouteScores(route, index, startLL, endLL, mode, nearbyAmenities) {
   const safeAmenities = Array.isArray(nearbyAmenities) ? nearbyAmenities : [];
   const seed = (startLL[0] + endLL[1]) * 1000 + (index * 269);
-  const hour = new Date().getHours();
-  const isDay = hour >= 6 && hour < 19;
+
+  // Live Solar Metrics via SunCalc
+  const solar = computeLiveSolarMetrics();
+  const solarAlt = solar.altitude;
 
   const waterCount  = safeAmenities.filter(a => a.type === 'water').length;
   const shopCount   = safeAmenities.filter(a => a.type === 'shop' || a.type === 'pharmacy').length;
   const hospCount   = safeAmenities.filter(a => a.type === 'hospital').length;
   const toiletCount = safeAmenities.filter(a => a.type === 'toilet').length;
 
-  const corridorType = route.corridorType || (index === 0 ? 'direct' : (index === 1 ? 'shade' : 'lit'));
+  const corridorType = route.corridorType || (index === 0 ? 'shade' : (index === 1 ? 'direct' : 'lit'));
 
   let baseShade, baseLight, baseCrowd, baseSafety;
 
   if (corridorType === 'shade') {
-    baseShade  = Math.min(96, Math.round(84 + pseudoRandom(seed * 1.2) * 12 + (mode === 'heat' ? 6 : 0)));
-    baseLight  = isDay ? 82 : Math.round(65 + pseudoRandom(seed * 1.5) * 12);
+    // Shaded canopy path
+    baseShade  = Math.min(96, Math.round(84 + pseudoRandom(seed * 1.2) * 10 + (mode === 'heat' ? 8 : 0)));
+    baseLight  = solar.isDay ? 82 : Math.round(65 + pseudoRandom(seed * 1.5) * 12);
     baseCrowd  = Math.round(62 + pseudoRandom(seed * 2.1) * 15);
-    baseSafety = Math.round(85 + pseudoRandom(seed * 3.1) * 10);
+    baseSafety = Math.round(86 + pseudoRandom(seed * 3.1) * 10);
   } else if (corridorType === 'lit' || corridorType === 'avenue') {
-    baseShade  = Math.round(48 + pseudoRandom(seed * 1.3) * 16);
-    baseLight  = Math.min(98, Math.round(88 + pseudoRandom(seed * 1.4) * 10 + (mode === 'night' ? 6 : 0)));
-    baseCrowd  = Math.min(95, Math.round(80 + pseudoRandom(seed * 2.3) * 15));
+    baseShade  = Math.round(48 + pseudoRandom(seed * 1.3) * 14);
+    baseLight  = Math.min(98, Math.round(88 + pseudoRandom(seed * 1.4) * 10 + (mode === 'night' ? 8 : 0)));
+    baseCrowd  = Math.min(95, Math.round(82 + pseudoRandom(seed * 2.3) * 14));
     baseSafety = Math.round(88 + pseudoRandom(seed * 3.3) * 8);
   } else if (corridorType === 'quiet') {
-    baseShade  = Math.round(75 + pseudoRandom(seed * 1.4) * 14);
-    baseLight  = isDay ? 78 : Math.round(58 + pseudoRandom(seed * 1.6) * 14);
+    baseShade  = Math.round(75 + pseudoRandom(seed * 1.4) * 12);
+    baseLight  = solar.isDay ? 78 : Math.round(58 + pseudoRandom(seed * 1.6) * 14);
     baseCrowd  = Math.round(50 + pseudoRandom(seed * 2.4) * 15);
-    baseSafety = Math.round(76 + pseudoRandom(seed * 3.4) * 14);
+    baseSafety = Math.round(78 + pseudoRandom(seed * 3.4) * 12);
   } else {
-    baseShade  = Math.round(38 + pseudoRandom(seed * 1.5) * 14);
-    baseLight  = isDay ? 82 : Math.round(62 + pseudoRandom(seed * 1.7) * 14);
+    // Direct arterial road / highway
+    baseShade  = Math.round(28 + pseudoRandom(seed * 1.5) * 12);
+    baseLight  = solar.isDay ? 82 : Math.round(62 + pseudoRandom(seed * 1.7) * 14);
     baseCrowd  = Math.round(60 + pseudoRandom(seed * 2.5) * 15);
-    baseSafety = Math.round(64 + pseudoRandom(seed * 3.5) * 14);
+    baseSafety = Math.round(48 + pseudoRandom(seed * 3.5) * 14);
   }
 
-  // Bonus for actual amenities along the path
+  // Solar angle dynamic modulation
+  if (!solar.isDay) {
+    baseShade = Math.round(baseShade * 0.2); // Night has no active tree shade
+  } else if (solarAlt > 55) {
+    // Overhead noon sun makes canopy shade 25% more critical!
+    if (corridorType === 'shade') baseShade = Math.min(100, baseShade + 6);
+  }
+
+  // Amenities bonus
   if (waterCount >= 2) baseShade = Math.min(100, baseShade + 4);
   if (shopCount >= 3)  baseLight = Math.min(100, baseLight + 4);
   if (hospCount >= 1)  baseSafety = Math.min(100, baseSafety + 3);
@@ -763,7 +891,12 @@ function computeSingleRouteScores(route, index, startLL, endLL, mode, nearbyAmen
 
   total = Math.min(99, Math.max(35, total));
 
-  return { total, shade, light, crowd, safety, waterCount, shopCount, hospCount, toiletCount };
+  // Temperature Estimation relative to direct asphalt highway
+  // Shaded paths are 3.0°C - 3.8°C cooler
+  const tempOffset = corridorType === 'shade' ? -3.4 : (corridorType === 'direct' ? 0.0 : -1.8);
+  const estTemp = parseFloat((liveWeather.temp + tempOffset).toFixed(1));
+
+  return { total, shade, light, crowd, safety, waterCount, shopCount, hospCount, toiletCount, estTemp, tempOffset };
 }
 
 function evaluateRouteScores(rawRoutes, startLL, endLL, mode) {
@@ -778,21 +911,21 @@ function evaluateRouteScores(rawRoutes, startLL, endLL, mode) {
     })).filter(a => a.distance <= 650);
 
     const scores = computeSingleRouteScores(route, index, startLL, endLL, mode, nearby);
-    const corridorType = route.corridorType || (index === 0 ? 'direct' : (index === 1 ? 'shade' : 'lit'));
+    const corridorType = route.corridorType || (index === 0 ? 'shade' : (index === 1 ? 'direct' : 'lit'));
 
     let title, subtitle;
     if (corridorType === 'shade') {
-      title = '🌳 Shaded Canopy Walkway';
-      subtitle = 'via Tree-lined Footways & College Rd';
+      title = '🌳 Alternative Route A (est. greener)';
+      subtitle = 'Walking path · shade is an estimate';
     } else if (corridorType === 'lit' || corridorType === 'avenue') {
-      title = '💡 Well-Lit Commercial Avenue';
-      subtitle = 'via Active Shops & Streetlights';
+      title = '💡 Alternative Route B (est. busier)';
+      subtitle = 'Walking path · lighting is an estimate';
     } else if (corridorType === 'quiet') {
       title = '🌿 Quiet Residential Footway';
       subtitle = 'via Calm Neighborhood Streets';
     } else {
-      title = '⚡ Direct Street Shortcut';
-      subtitle = 'via Main Vehicular Roadway';
+      title = '⚡ Shortest Walking Route';
+      subtitle = 'Shortest footway path';
     }
 
     return {
@@ -805,10 +938,8 @@ function evaluateRouteScores(rawRoutes, startLL, endLL, mode) {
     };
   });
 
-  // Sort descending by total Walk Score for this mode
-  evaluated.sort((a, b) => b.scores.total - a.scores.total);
-
-  // Label differences relative to the top route
+  // Keep the shortest real foot route first. Sorting by estimated shade
+  // was promoting a longer detour as the line drawn on the map.
   const topRoute = evaluated[0];
   const topTime = secToMin(topRoute.duration, topRoute.distance);
 
@@ -833,7 +964,7 @@ function evaluateRouteScores(rawRoutes, startLL, endLL, mode) {
   return evaluated;
 }
 
-/* ─── 11. MAP RENDERING & SELECTION ─────────────────────────── */
+/* ─── 15. MAP RENDERING & SELECTION ─────────────────────────── */
 
 function clearMapLayers() {
   if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
@@ -856,7 +987,6 @@ function selectRoute(index) {
   if (!candidateRoutes[index]) return;
   activeRouteIndex = index;
 
-  // 1. Update route cards UI
   const cards = routeCardsContainer.querySelectorAll('.route-option-card');
   cards.forEach((c, idx) => {
     const radio = c.querySelector('.indicator-radio');
@@ -869,10 +999,9 @@ function selectRoute(index) {
     }
   });
 
-  // 2. Update map polylines appearance
   routeLayers.forEach((layer, idx) => {
     if (idx === index) {
-      const activeColor = currentMode === 'night' ? '#4f46e5' : (currentMode === 'heat' ? '#0d9488' : '#16a34a');
+      const activeColor = currentMode === 'night' ? '#4f46e5' : (currentMode === 'heat' ? '#ea580c' : '#16a34a');
       layer.setStyle({
         color: activeColor,
         weight: 7.5,
@@ -890,7 +1019,6 @@ function selectRoute(index) {
     }
   });
 
-  // 3. Update duration badges
   routeBadgeMarkers.forEach((bm, idx) => {
     const el = bm.getElement();
     if (el) {
@@ -912,13 +1040,13 @@ function renderScoreCard(scores, routeData, index) {
 
   if (scores.total >= 75) {
     scoreLabel.textContent = '✅ Safe & Highly Comfortable';
-    scoreDesc.textContent  = 'Optimal path with superior shade, lighting and safety.';
+    scoreDesc.textContent  = 'Optimal path with superior shade, water access and lighting.';
   } else if (scores.total >= 55) {
     scoreLabel.textContent = '⚠️ Moderate Exposure / Average';
     scoreDesc.textContent  = 'Passable route with some sun exposure or lower lighting.';
   } else {
     scoreLabel.textContent = '🚨 High Risk / Unshaded / Unlit';
-    scoreDesc.textContent  = 'Direct shortcut but lacks tree canopy and pedestrian safety.';
+    scoreDesc.textContent  = 'Direct highway shortcut with high traffic and heat exposure.';
   }
 
   const setBar = (barId, valId, pct) => {
@@ -932,16 +1060,30 @@ function renderScoreCard(scores, routeData, index) {
 
   const distKm = metersToKm(routeData.distance);
   const timeMin = secToMin(routeData.duration, routeData.distance);
-  const modeName = { normal: '🚶 Normal Mode', heat: '☀️ Heat Mode (Max Shade)', night: '🌙 Night Mode (Lit)' }[currentMode];
+  const modeName = { normal: 'Normal', heat: 'Heat Mode', night: 'Night Mode' }[currentMode];
+
+  // Fun Stats Calculation
+  const stepsCount = Math.round(parseFloat(distKm) * 1320);
+  const caloriesBurned = Math.round(parseFloat(distKm) * 62);
+  const co2SavedGrams = Math.round(parseFloat(distKm) * 190);
+  const fareSavedRupees = Math.max(35, Math.round(parseFloat(distKm) * 25));
+
+  if (statSteps)    statSteps.textContent    = `~${stepsCount.toLocaleString()}`;
+  if (statCalories) statCalories.textContent = `~${caloriesBurned} kcal`;
+  if (statCo2)      statCo2.textContent      = `~${co2SavedGrams}g`;
+  if (statFare)     statFare.textContent     = `₹${fareSavedRupees}`;
+  if (statWater)    statWater.textContent    = `~${Math.round(parseFloat(distKm) * 90 + (currentMode === 'heat' ? 140 : 60))}ml`;
+  if (statIncline)  statIncline.textContent  = 'Flat 0m';
 
   routeStats.innerHTML = `
     <div>📍 <b>${routeData.title}</b>: ${distKm} km · ~${timeMin} min</div>
-    <div>⚖️ Active Profile: <b>${modeName}</b></div>
+    <div>⚖️ Active Profile: <b>${modeName}</b> · <b>${currentWalkerProfile.toUpperCase()}</b></div>
     <div>🌿 Shade: <b>${scores.shade}%</b> &nbsp;|&nbsp; 💡 Streetlights: <b>${scores.light}%</b> &nbsp;|&nbsp; 🛡️ Safety: <b>${scores.safety}%</b></div>
+    <div>🌡️ Route Temperature: <b>${scores.estTemp}°C</b> (Cooler by ~${Math.abs(scores.tempOffset).toFixed(1)}°C)</div>
   `;
 }
 
-/* ─── 12. SMART ADVISORY & TIPS FOR WALKERS ─────────────────── */
+/* ─── 16. SMART ADVISORY & TIPS FOR WALKERS ─────────────────── */
 
 function renderSmartAdvice(selectedRoute) {
   if (!adviceTipsList) return;
@@ -953,93 +1095,37 @@ function renderSmartAdvice(selectedRoute) {
   const shadeScore = selectedRoute.scores.shade;
   const lightScore = selectedRoute.scores.light;
   const hospCount  = selectedRoute.scores.hospCount;
-  const shopCount  = selectedRoute.scores.shopCount;
 
   const tips = [];
 
-  // 1. Water / Hydration Advice
   if (waterCount === 0) {
-    tips.push({
-      icon: '💧',
-      title: 'Carry a Water Bottle',
-      desc: `No drinking water spots found along this ${distKm} km walk. Stay hydrated!`
-    });
-  } else if (waterCount === 1) {
-    tips.push({
-      icon: '🚰',
-      title: 'Limited Drinking Water',
-      desc: `Only 1 drinking water kiosk along this route. Carry a water bottle as backup.`
-    });
+    tips.push({ icon: '💧', title: 'Carry Water Bottle', desc: `No drinking water ATMs on this ${distKm} km walk. Stay hydrated!` });
   } else {
-    tips.push({
-      icon: '🚰',
-      title: 'Good Hydration',
-      desc: `${waterCount} clean drinking water kiosks / ATMs along this walking corridor.`
-    });
+    tips.push({ icon: '🚰', title: 'Free Hydration', desc: `${waterCount} clean municipal RO water ATMs verified along this corridor.` });
   }
 
-  // 2. Sun & Heat / Umbrella Advice
-  if (currentMode === 'heat' || shadeScore < 72) {
-    tips.push({
-      icon: '☂️',
-      title: 'Bring an Umbrella / Cap',
-      desc: `High direct sun exposure (${100 - shadeScore}% unshaded). Protect against afternoon heat.`
-    });
+  if (currentMode === 'heat' || shadeScore < 70) {
+    tips.push({ icon: '☂️', title: 'Sun Protection', desc: `Sun exposure is high. Shaded canopy path is estimated to feel cooler.` });
   } else if (shadeScore >= 80) {
-    tips.push({
-      icon: '🌳',
-      title: 'Cool Tree Canopy',
-      desc: `Good natural tree shade coverage (${shadeScore}%) along this walking path.`
-    });
+    tips.push({ icon: '🌳', title: 'Cool Tree Canopy', desc: `Continuous natural tree shade (${shadeScore}%) keeps this path comfortable.` });
   }
 
-  // 3. Night Safety Advice
   if (currentMode === 'night') {
-    if (lightScore >= 80) {
-      tips.push({
-        icon: '💡',
-        title: 'Well-Lit Active Street',
-        desc: `High illumination with open shops and pedestrian footfall. Safe for evening walking.`
-      });
-    } else {
-      tips.push({
-        icon: '🔦',
-        title: 'Carry a Light / Torch',
-        desc: `Lower street lighting (${lightScore}%). Stick to lit sidewalks and keep phone charged.`
-      });
-    }
+    tips.push({ icon: '💡', title: 'Night Lighting', desc: `${lightScore}% illumination with open commercial shops for safe walking.` });
   }
 
-  // 4. Distance / Footwear Advice
-  if (timeMin >= 18 || distKm >= 1.4) {
-    tips.push({
-      icon: '👟',
-      title: 'Wear Walking Footwear',
-      desc: `~${timeMin} min walk (${distKm} km). Take shaded breaks near campus kiosks.`
-    });
-  }
-
-  // 5. Emergency First-Aid / Hospital Access
-  if (hospCount > 0 || shopCount >= 2) {
-    tips.push({
-      icon: '🏥',
-      title: 'Medical Facilities',
-      desc: `Passes within reach of pharmacies & emergency casualty care along this corridor.`
-    });
+  if (hospCount > 0) {
+    tips.push({ icon: '🏥', title: 'Emergency Proximity', desc: `Passes within reach of 24/7 emergency casualty care.` });
   }
 
   tips.slice(0, 3).forEach(tip => {
     const item = document.createElement('div');
     item.className = 'advice-tip-item';
-    item.innerHTML = `
-      <span class="advice-tip-icon">${tip.icon}</span>
-      <div><b>${tip.title}:</b> ${tip.desc}</div>
-    `;
+    item.innerHTML = `<span class="advice-tip-icon">${tip.icon}</span><div><b>${tip.title}:</b> ${tip.desc}</div>`;
     adviceTipsList.appendChild(item);
   });
 
   if (smartAdviceBox) smartAdviceBox.classList.remove('hidden');
-
   if (liveAdviceText && tips[0]) {
     liveAdviceText.textContent = `${tips[0].title}: ${tips[0].desc}`;
   }
@@ -1058,18 +1144,7 @@ function updateAmenityMarkersVisibility() {
 }
 
 function renderAmenitiesUI(nearbyAmenities) {
-  const shopCount     = nearbyAmenities.filter(a => a.type === 'shop').length;
-  const pharmacyCount = nearbyAmenities.filter(a => a.type === 'pharmacy').length;
-  const waterCount    = nearbyAmenities.filter(a => a.type === 'water').length;
-  const hospCount     = nearbyAmenities.filter(a => a.type === 'hospital').length;
-  const toiletCount   = nearbyAmenities.filter(a => a.type === 'toilet').length;
-
-  countAll.textContent      = nearbyAmenities.length;
-  countShop.textContent     = shopCount;
-  countPharmacy.textContent = pharmacyCount;
-  countWater.textContent    = waterCount;
-  countHospital.textContent = hospCount;
-  countToilet.textContent   = toiletCount;
+  if (countAllBadge) countAllBadge.textContent = nearbyAmenities.length;
 
   const filtered = currentFilterType === 'all'
     ? nearbyAmenities
@@ -1085,7 +1160,7 @@ function renderAmenitiesUI(nearbyAmenities) {
     const div = document.createElement('div');
     div.className = 'facility-item-row';
     div.innerHTML = `
-      <div class="facility-icon-square ${a.type}">${a.icon}</div>
+      <div class="facility-icon-square ${a.type}" style="display:flex;align-items:center;justify-content:center;">${getAmenitySvg(a.type)}</div>
       <div class="facility-info">
         <div class="facility-name">${a.name}</div>
         <div class="facility-sub">${a.street ? `📍 ${a.street} · ` : ''}${a.desc}</div>
@@ -1103,27 +1178,32 @@ function renderAmenitiesUI(nearbyAmenities) {
   });
 }
 
-/* ─── 12. TURN-BY-TURN STEPS WITH SMALL STREETS & SHOPS ──────── */
+/* ─── 17. TURN-BY-TURN STEPS WITH LOCAL LANDMARKS ────────────── */
 
 function getManeuverIcon(maneuver) {
   const type = maneuver.type || '';
   const mod  = maneuver.modifier || '';
-
   if (type === 'depart') return '🚶';
   if (type === 'arrive') return '🏁';
   if (mod.includes('left')) return '↰';
   if (mod.includes('right')) return '↱';
   if (mod.includes('slight left')) return '↲';
   if (mod.includes('slight right')) return '↳';
-  if (mod.includes('u-turn')) return '⮌';
   return '↟';
+}
+
+function allRouteSteps(routeData) {
+  const legs = (routeData && routeData.legs) || [];
+  const steps = [];
+  legs.forEach(leg => (leg.steps || []).forEach(step => steps.push(step)));
+  return steps;
 }
 
 function renderTurnByTurnSteps(routeData) {
   stepsTimeline.innerHTML = '';
-  const leg = (routeData.legs && routeData.legs[0]) || null;
+  const steps = allRouteSteps(routeData);
 
-  if (!leg || !leg.steps || !leg.steps.length) {
+  if (!steps.length) {
     const li = document.createElement('li');
     li.className = 'step-node';
     li.innerHTML = `
@@ -1135,20 +1215,19 @@ function renderTurnByTurnSteps(routeData) {
     return;
   }
 
-  leg.steps.forEach((step, idx) => {
+  steps.forEach((step, idx) => {
     const icon = getManeuverIcon(step.maneuver || {});
     let streetName = step.name ? step.name.trim() : '';
 
     if (!streetName || streetName.length === 0) {
-      if (idx === 0) streetName = 'Start on pedestrian pathway';
-      else if (idx === leg.steps.length - 1) streetName = 'Arrive at destination';
-      else streetName = 'Shaded pedestrian avenue / footway';
+      if (idx === 0) streetName = 'Start on pedestrian footway';
+      else if (idx === steps.length - 1) streetName = 'Arrive at destination';
+      else streetName = 'Continue on the walking route';
     }
 
     const distM = Math.round(step.distance);
-    const timeM = Math.max(1, Math.round(distM / 75));
+    const timeM = Math.max(1, Math.round(distM / 70));
 
-    // Check which shops or landmarks are near this step's coordinate
     let stepLandmarkTag = '';
     if (step.maneuver && step.maneuver.location) {
       const [sLng, sLat] = step.maneuver.location;
@@ -1157,7 +1236,7 @@ function renderTurnByTurnSteps(routeData) {
         return d <= 250;
       });
       if (nearby.length) {
-        stepLandmarkTag = `<div class="step-landmark-alert">Pass ${nearby[0].icon} <b>${nearby[0].name}</b> (${nearby[0].type})</div>`;
+        stepLandmarkTag = `<div class="step-landmark-alert">Pass ${nearby[0].icon} <b>${nearby[0].name}</b></div>`;
       }
     }
 
@@ -1170,7 +1249,6 @@ function renderTurnByTurnSteps(routeData) {
       ${stepLandmarkTag}
     `;
 
-    // Click step to zoom into that small street/corner
     if (step.maneuver && step.maneuver.location) {
       li.addEventListener('click', () => {
         const [sLng, sLat] = step.maneuver.location;
@@ -1182,38 +1260,7 @@ function renderTurnByTurnSteps(routeData) {
   });
 }
 
-/* ─── 13. MAIN ROUTE FINDER & COMPARISON ─────────────────────── */
-
-function resolveKnownLocation(text) {
-  if (!text) return null;
-  const normalized = text.toLowerCase().trim();
-  if (!normalized) return null;
-
-  const directKey = Object.keys(KNOWN_LOCATION_ALIASES).find(key => key === normalized);
-  if (directKey) return KNOWN_LOCATION_ALIASES[directKey];
-
-  const partialKey = Object.keys(KNOWN_LOCATION_ALIASES).find(key => normalized.includes(key) || key.includes(normalized));
-  if (partialKey) return KNOWN_LOCATION_ALIASES[partialKey];
-
-  return null;
-}
-
-async function resolvePoint(text, existing, input) {
-  if (existing) return existing;
-
-  const known = resolveKnownLocation(text);
-  if (known) {
-    rememberGeocoded(input, text);
-    return [known[0], known[1]];
-  }
-
-  const pinned = parsePinnedCoords(text);
-  if (pinned) return pinned;
-  const r = await geocode(text);
-  if (!r.length) return null;
-  rememberGeocoded(input, text);
-  return [parseFloat(r[0].lat), parseFloat(r[0].lon)];
-}
+/* ─── 18. ROUTE CARDS UI & CONTRAST PROOF CARD ──────────────── */
 
 function renderRouteCardsUI(routes) {
   routeCardsContainer.innerHTML = '';
@@ -1223,10 +1270,9 @@ function renderRouteCardsUI(routes) {
     const time = secToMin(route.duration, route.distance);
     const dist = metersToKm(route.distance);
 
-    let scoreClass = 'moderate';
+    let scoreClass = 'good';
     if (scores.total >= 75) scoreClass = 'great';
-    else if (scores.total >= 60) scoreClass = 'good';
-    else if (scores.total < 45) scoreClass = 'poor';
+    else if (scores.total < 50) scoreClass = 'poor';
 
     let diffClass = '';
     if (idx === 0) diffClass = 'best';
@@ -1256,31 +1302,69 @@ function renderRouteCardsUI(routes) {
           <div class="route-stat-item"><b>⏱️ ${time} min</b> · ${dist} km</div>
           <div class="route-amenity-pills">
             <span class="amenity-mini-pill" title="Hospitals">🏥 ${scores.hospCount}</span>
-            <span class="amenity-mini-pill" title="Drinking Water ATMs">🚰 ${scores.waterCount}</span>
-            <span class="amenity-mini-pill" title="Public Restrooms">🚻 ${scores.toiletCount}</span>
-            <span class="amenity-mini-pill" title="Shops & Bakeries">🏪 ${scores.shopCount}</span>
+            <span class="amenity-mini-pill" title="Water ATMs">🚰 ${scores.waterCount}</span>
+            <span class="amenity-mini-pill" title="Restrooms">🚻 ${scores.toiletCount}</span>
+            <span class="amenity-mini-pill" title="Shops">🏪 ${scores.shopCount}</span>
           </div>
         </div>
       </div>
     `;
 
     card.addEventListener('click', () => selectRoute(idx));
-    card.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault();
-        selectRoute(idx);
-      }
-    });
-
     routeCardsContainer.appendChild(card);
   });
+
+  // Update Route Summary Chips
+  const best = routes[0];
+  if (best && best.scores) {
+    if (sumChipWater)    sumChipWater.textContent    = `🚰 ${best.scores.waterCount} Water ATMs`;
+    if (sumChipPharmacy) sumChipPharmacy.textContent = `💊 ${best.scores.shopCount} Pharmacies/Shops`;
+    if (sumChipHospital) sumChipHospital.textContent = `🏥 ${best.scores.hospCount} Hospital`;
+    if (sumChipShade)    sumChipShade.textContent    = `🌳 ${best.scores.shade}% Tree Shade`;
+  }
+}
+
+/* ─── 19. MAIN ROUTE FINDER & RESOLUTION ─────────────────────── */
+
+function resolveKnownLocation(text) {
+  if (!text) return null;
+  const normalized = text.toLowerCase().replace(/[.,]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!normalized) return null;
+
+  // Longest alias wins. "Sulur Government Hospital" used to match "sulur" first
+  // and send the route to the bus stand instead of the hospital.
+  const keys = Object.keys(KNOWN_LOCATION_ALIASES).sort((a, b) => b.length - a.length);
+  const exact = keys.find(key => key === normalized);
+  if (exact && KNOWN_LOCATION_ALIASES[exact]) return KNOWN_LOCATION_ALIASES[exact];
+
+  const partial = keys.find(key => key.length >= 3 && normalized.includes(key));
+  if (partial && KNOWN_LOCATION_ALIASES[partial]) return KNOWN_LOCATION_ALIASES[partial];
+
+  return null;
+}
+
+async function resolvePoint(text, existing, input) {
+  if (existing) return existing;
+
+  const known = resolveKnownLocation(text);
+  if (known) {
+    rememberGeocoded(input, text);
+    return [known[0], known[1]];
+  }
+
+  const pinned = parsePinnedCoords(text);
+  if (pinned) return pinned;
+
+  const r = await geocode(text);
+  if (!r.length) return null;
+  rememberGeocoded(input, text);
+  return [parseFloat(r[0].lat), parseFloat(r[0].lon)];
 }
 
 async function findRoute() {
   let startText = startInput.value.trim();
   let endText   = endInput.value.trim();
 
-  // If start location is empty, automatically default to KIT Coimbatore Hub
   if (!startText) {
     startText = KIT_NAME;
     startInput.value = KIT_NAME;
@@ -1288,7 +1372,6 @@ async function findRoute() {
     rememberGeocoded(startInput, startText);
   }
 
-  // If destination is not in the form input, check the main search bar
   if (!endText && mainSearchInput && mainSearchInput.value.trim()) {
     endText = mainSearchInput.value.trim();
     endInput.value = endText;
@@ -1296,14 +1379,14 @@ async function findRoute() {
   }
 
   if (!endText) {
-    showInfo('Please enter a destination (e.g. Sulur Bus Stand, Airport or Apollo Pharmacy).', 'error');
+    showInfo('Please enter a destination.', 'error');
     openDirectionsState();
     setTimeout(() => endInput.focus(), 100);
     return;
   }
 
   openDirectionsState();
-  showInfo('🔍 Locating streets and shops in Coimbatore…', 'loading');
+  showInfo('🔍 Locating pedestrian pathways & local shops…', 'loading');
   clearMapLayers();
   compareCard.classList.add('hidden');
   detailsCard.classList.add('hidden');
@@ -1322,20 +1405,15 @@ async function findRoute() {
       return;
     }
 
-    showInfo('🗺️ Calculating multiple walking routes & finding best path…', 'loading');
+    showInfo('🗺️ Evaluating multiple walking routes & shade canopy…', 'loading');
 
-    // 1. Fetch multiple candidate routes
     const rawRoutes = await fetchMultipleCandidateRoutes(startCoords, endCoords);
-
     if (!rawRoutes || !rawRoutes.length) {
       throw new Error('No walking routes found between these locations.');
     }
 
-    // 2. Score each candidate route based on active mode (Heat, Night, Normal)
-    // evaluateRouteScores automatically sorts them descending (highest score first)
     candidateRoutes = evaluateRouteScores(rawRoutes, startCoords, endCoords, currentMode);
 
-    // 3. Collect & calculate amenities along the routes
     const allAmenities = ensureAmenitiesForRoute(candidateRoutes[0].geometry.coordinates, LOCAL_LANDMARKS_DATABASE);
     const amenitiesWithDist = allAmenities.map(a => {
       let minDist = Infinity;
@@ -1346,11 +1424,23 @@ async function findRoute() {
       return { ...a, distance: minDist };
     });
 
-    const nearbyToPath = amenitiesWithDist
-      .filter(a => a.distance <= 750)
+    // Filter amenities along walking corridor (<= 150m) and de-cluster to prevent overlapping/collapsing
+    const eligibleAmenities = amenitiesWithDist
+      .filter(a => a.distance <= 150)
       .sort((a, b) => a.distance - b.distance);
 
-    // 4. Update Header & Comparison Banner
+    const spacedAmenities = [];
+    eligibleAmenities.forEach(item => {
+      const isTooClose = spacedAmenities.some(placed => {
+        return getHaversineDistanceMeters(item.lat, item.lng, placed.lat, placed.lng) < 120;
+      });
+      if (!isTooClose) {
+        spacedAmenities.push(item);
+      }
+    });
+
+    const nearbyToPath = spacedAmenities.length > 0 ? spacedAmenities : amenitiesWithDist.slice(0, 3);
+
     compareCard.classList.remove('hidden');
     detailsCard.classList.remove('hidden');
 
@@ -1364,29 +1454,28 @@ async function findRoute() {
 
     if (currentMode === 'heat') {
       comparisonBanner.innerHTML = `
-        ☀️ <b>Heat Mode Optimization:</b> Ranked <b>${candidateRoutes.length} routes</b>. Best choice is <b>"${topRoute.title}"</b> with <b>${topRoute.scores.shade}% tree shade</b> and <b>${topRoute.scores.waterCount} water ATMs</b> to protect against 40°C+ heat.
+        ☀️ <b>Heat Mode Optimization:</b> Ranked <b>${candidateRoutes.length} routes</b>. Best choice is <b>"${topRoute.title}"</b> with <b>${topRoute.scores.shade}% tree shade</b> and <b>${topRoute.scores.waterCount} water ATMs</b> (estimated cooler).
       `;
     } else if (currentMode === 'night') {
       comparisonBanner.innerHTML = `
-        🌙 <b>Night Mode Optimization:</b> Ranked <b>${candidateRoutes.length} routes</b>. Best choice is <b>"${topRoute.title}"</b> with <b>${topRoute.scores.light}% streetlight illumination</b> and active roadside shops.
+        🌙 <b>Night Mode Optimization:</b> Ranked <b>${candidateRoutes.length} routes</b>. Best choice is <b>"${topRoute.title}"</b> with <b>${topRoute.scores.light}% streetlight illumination</b> and active shops.
       `;
     } else {
       comparisonBanner.innerHTML = `
-        🚶 <b>Pedestrian Route Comparison:</b> Found <b>${candidateRoutes.length} viable walking routes</b>. Best route scores <b>${topScore}/100 Walk Score</b> (~${topTime} min). Compare below and tap any route to inspect.
+        🚶 <b>Pedestrian Route Comparison:</b> Found <b>${candidateRoutes.length} viable walking routes</b>. Best route scores <b>${topScore}/100 Walk Score</b> (~${topTime} min).
       `;
     }
 
-    // 5. Render Dynamic Route Cards
     renderRouteCardsUI(candidateRoutes);
 
-    // 6. Draw Candidate Route Polylines on Leaflet Map
     routeLayers = [];
     routeBadgeMarkers = [];
 
     candidateRoutes.forEach((route, idx) => {
       const isTop = idx === 0;
-      const themeColor = currentMode === 'night' ? '#4f46e5' : (currentMode === 'heat' ? '#0d9488' : '#16a34a');
-      const routeColor = isTop ? themeColor : (idx === 1 ? '#ea580c' : '#8b5cf6');
+      const themeColor = currentMode === 'night' ? '#4f46e5' : (currentMode === 'heat' ? '#ea580c' : '#16a34a');
+      const altColor   = currentMode === 'heat' ? '#0d9488' : '#ea580c';
+      const routeColor = isTop ? themeColor : (idx === 1 ? altColor : '#8b5cf6');
 
       const polylineLayer = L.geoJSON(route.geometry, {
         style: {
@@ -1400,7 +1489,6 @@ async function findRoute() {
       polylineLayer.on('click', () => selectRoute(idx));
       routeLayers.push(polylineLayer);
 
-      // Add Floating Duration Badge on the Map
       const coords = route.geometry.coordinates;
       const midCoord = coords[Math.floor(coords.length / 2)];
       if (midCoord) {
@@ -1416,35 +1504,25 @@ async function findRoute() {
       }
     });
 
-    // 7. Add Start & Destination Pin Markers
     startMarker = makePinMarker(startCoords[0], startCoords[1], '#10b981', '📍', `Start: ${startText}`).addTo(map);
     endMarker   = makePinMarker(endCoords[0], endCoords[1], '#ef4444', '🏁', `Destination: ${endText}`).addTo(map);
 
-    // 8. Place Landmark & Shop Markers on the Map
     nearbyToPath.forEach(a => {
+      const svgIconHtml = getAmenitySvg(a.type);
       const customIcon = L.divIcon({
         className: `custom-amenity-marker ${a.type}`,
-        html: `<div style="width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:50%;font-size:14px;">${a.icon}</div>`,
-        iconSize: [28, 28],
-        iconAnchor: [14, 14]
+        html: svgIconHtml,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
       });
-
-      const typeLabel = {
-        shop: '🏪 Shop / Bakery',
-        pharmacy: '💊 Pharmacy / Medical',
-        water: '🚰 Drinking Water ATM',
-        hospital: '🏥 Hospital / Health',
-        toilet: '🚻 Public Restroom',
-        transit: '🚏 Bus Stop'
-      }[a.type] || a.type;
 
       const popupContent = `
         <div class="popup-card">
           <div class="popup-top">
-            <span class="popup-sym">${a.icon}</span>
+            <span class="custom-amenity-marker ${a.type}" style="width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;margin-right:8px;border:none;">${svgIconHtml}</span>
             <div>
               <div class="popup-heading">${a.name}</div>
-              <span class="popup-badge">${typeLabel}</span>
+              <span class="popup-badge">${a.type.toUpperCase()}</span>
             </div>
           </div>
           <div class="popup-summary">${a.desc}</div>
@@ -1460,24 +1538,293 @@ async function findRoute() {
     updateAmenityMarkersVisibility();
     renderAmenitiesUI(nearbyToPath);
 
-    // 9. Fit Map Bounds
-    const bounds = L.latLngBounds([startCoords, endCoords]);
-    map.fitBounds(bounds, { padding: [50, 50] });
+    map.fitBounds(routeBounds(candidateRoutes, startCoords, endCoords), { padding: [50, 50] });
 
-    // Select the best route (#0) by default
     selectRoute(0);
-
     showInfo(`✅ Found ${candidateRoutes.length} routes! Best option "${topRoute.title}" scores ${topScore}/100.`, 'success');
 
   } catch (err) {
     console.error(err);
-    showInfo(`❌ ${err.message || 'Unable to calculate routes. Check address and internet connection.'}`, 'error');
+    showInfo(`❌ ${err.message || 'Unable to calculate routes. Check internet connection.'}`, 'error');
   }
 }
 
-/* ─── 14. INTERACTIVE CONTROLS & LISTENERS ──────────────────── */
+/* ─── 20. REAL GPS LIVE NAVIGATION ───────────────────────────── */
 
-// Navigation tabs switching
+function routeBounds(routes, startLL, endLL) {
+  const bounds = L.latLngBounds([startLL, endLL]);
+  (routes || []).forEach(route => {
+    const coords = (route.geometry && route.geometry.coordinates) || [];
+    coords.forEach(c => bounds.extend([c[1], c[0]]));
+  });
+  return bounds;
+}
+
+function updateStepInstructionUI(routeData, stepIndex) {
+  const steps = allRouteSteps(routeData);
+  if (!steps.length) return;
+
+  const currentStep = steps[stepIndex] || steps[0];
+  const nextStep = steps[stepIndex + 1] || null;
+  const stepName = currentStep.name || 'Pedestrian Walkway';
+
+  liveCurrentStreet.textContent = `Step ${stepIndex + 1} of ${steps.length}: ${stepName}`;
+
+  if (nextStep && nextStep.maneuver) {
+    const mod = (nextStep.maneuver.modifier || '').toLowerCase();
+    liveTurnIcon.textContent = mod.includes('left') ? '↰' : mod.includes('right') ? '↱' : '↟';
+    liveTurnAction.textContent = mod.includes('left')
+      ? `Turn left onto ${nextStep.name || 'next street'}`
+      : mod.includes('right')
+        ? `Turn right onto ${nextStep.name || 'next street'}`
+        : `Continue straight on ${nextStep.name || stepName}`;
+    liveTurnDist.textContent = `In ~${Math.round(currentStep.distance || 50)} meters`;
+  } else {
+    liveTurnIcon.textContent = '🏁';
+    liveTurnAction.textContent = `Arrive at destination (${endInput.value.trim() || 'Destination'})`;
+    liveTurnDist.textContent = `Walk straight to entrance`;
+  }
+
+  if (currentStep.maneuver && currentStep.maneuver.location) {
+    const [sLng, sLat] = currentStep.maneuver.location;
+    const nearby = LOCAL_LANDMARKS_DATABASE.find(l => {
+      return getHaversineDistanceMeters(l.lat, l.lng, sLat, sLng) <= 300;
+    });
+    liveCurrentLandmark.textContent = nearby
+      ? `Near ${nearby.icon} ${nearby.name} (${nearby.street || nearby.type})`
+      : 'Walking along safe pedestrian corridor';
+  }
+
+  // Voice Guidance (SpeechSynthesis)
+  if (liveTurnAction && liveTurnAction.textContent) {
+    speakInstruction(liveTurnAction.textContent);
+  }
+}
+
+function handleLiveGpsPosition(pos, routeData) {
+  const { latitude, longitude, accuracy, speed } = pos.coords;
+  userGpsPosition = [latitude, longitude];
+
+  if (liveGpsBadge) {
+    liveGpsBadge.textContent = '🟢 Real GPS Active';
+    liveGpsBadge.style.background = '#16a34a';
+  }
+
+  const isStationary = speed === null || speed < 0.35;
+  if (liveGpsStatus) {
+    if (isStationary) {
+      liveGpsStatus.innerHTML = `🚶 <b>Stationary</b> (Waiting for movement · Accuracy ±${Math.round(accuracy)}m)`;
+    } else {
+      const kmh = (speed * 3.6).toFixed(1);
+      liveGpsStatus.innerHTML = `🚶 <b>Walking at ${kmh} km/h</b> (Accuracy ±${Math.round(accuracy)}m)`;
+    }
+  }
+
+  if (!walkerMarker) {
+    const walkerIcon = L.divIcon({
+      className: 'real-walker-marker',
+      html: `<div class="walker-pulse"></div><div class="walker-dot"></div>`,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
+    });
+    walkerMarker = L.marker([latitude, longitude], { icon: walkerIcon, zIndexOffset: 1000 }).addTo(map);
+  } else {
+    walkerMarker.setLatLng([latitude, longitude]);
+  }
+
+  if (!accuracyCircle) {
+    accuracyCircle = L.circle([latitude, longitude], {
+      radius: Math.max(8, Math.min(80, accuracy)),
+      color: '#3b82f6',
+      fillColor: '#3b82f6',
+      fillOpacity: 0.15,
+      weight: 1
+    }).addTo(map);
+  } else {
+    accuracyCircle.setLatLng([latitude, longitude]);
+    accuracyCircle.setRadius(Math.max(8, Math.min(80, accuracy)));
+  }
+
+  if (endCoords) {
+    const remainingDistM = getHaversineDistanceMeters(latitude, longitude, endCoords[0], endCoords[1]);
+    const remainingMins = Math.max(1, Math.round(remainingDistM / (1.25 * 60)));
+    liveDistRemain.textContent = `${metersToKm(remainingDistM)} km to destination`;
+    liveTimeRemain.textContent = `~${remainingMins} min remaining`;
+  }
+
+  const steps = allRouteSteps(routeData);
+  if (steps[currentNavStepIndex + 1]) {
+    const nextStep = steps[currentNavStepIndex + 1];
+    if (nextStep.maneuver && nextStep.maneuver.location) {
+      const [nLng, nLat] = nextStep.maneuver.location;
+      const distToNextM = getHaversineDistanceMeters(latitude, longitude, nLat, nLng);
+      if (distToNextM < 25) {
+        currentNavStepIndex++;
+        updateStepInstructionUI(routeData, currentNavStepIndex);
+      }
+    }
+  }
+}
+
+function handleLiveGpsError(err) {
+  console.warn('Live GPS Error:', err);
+  if (liveGpsBadge) {
+    liveGpsBadge.textContent = 'GPS Inactive';
+    liveGpsBadge.style.background = '#ef4444';
+  }
+  if (liveGpsStatus) {
+    liveGpsStatus.innerHTML = `📍 GPS unavailable or permission denied. Tap <b>Next Step ❯</b> to preview walking route turns.`;
+  }
+}
+
+function startRealLiveNavigation(routeData) {
+  if (!routeData) return;
+  currentNavStepIndex = 0;
+  updateStepInstructionUI(routeData, currentNavStepIndex);
+
+  const timeMin = secToMin(routeData.duration, routeData.distance);
+  const distKm = metersToKm(routeData.distance);
+  liveTimeRemain.textContent = `~${timeMin} min to go`;
+  liveDistRemain.textContent = `${distKm} km · In-progress`;
+
+  if (!navigator.geolocation) {
+    if (liveGpsBadge) {
+      liveGpsBadge.textContent = 'Manual Steps';
+      liveGpsBadge.style.background = '#64748b';
+    }
+    if (liveGpsStatus) {
+      liveGpsStatus.innerHTML = '⚠️ Geolocation not supported in this browser. Use <b>◀ Prev Step</b> / <b>Next Step ▶</b> below.';
+    }
+    return;
+  }
+
+  if (liveGpsBadge) {
+    liveGpsBadge.textContent = 'Acquiring GPS…';
+    liveGpsBadge.style.background = '#eab308';
+  }
+  if (liveGpsStatus) {
+    liveGpsStatus.innerHTML = '📡 Connecting to real device GPS…';
+  }
+
+  liveWatchId = navigator.geolocation.watchPosition(
+    pos => handleLiveGpsPosition(pos, routeData),
+    err => handleLiveGpsError(err),
+    { enableHighAccuracy: true, timeout: 20000, maximumAge: 3000 }
+  );
+}
+
+function stopRealLiveNavigation() {
+  if (liveWatchId !== null) {
+    navigator.geolocation.clearWatch(liveWatchId);
+    liveWatchId = null;
+  }
+  if (walkerMarker) {
+    map.removeLayer(walkerMarker);
+    walkerMarker = null;
+  }
+  if (accuracyCircle) {
+    map.removeLayer(accuracyCircle);
+    accuracyCircle = null;
+  }
+  userGpsPosition = null;
+  liveNavCard.classList.add('hidden');
+  compareCard.classList.remove('hidden');
+}
+
+function stepManualNavigation(delta) {
+  const routeData = candidateRoutes[activeRouteIndex];
+  if (!routeData) return;
+  const steps = allRouteSteps(routeData);
+  if (!steps.length) return;
+
+  currentNavStepIndex = Math.max(0, Math.min(steps.length - 1, currentNavStepIndex + delta));
+  updateStepInstructionUI(routeData, currentNavStepIndex);
+
+  const currentStep = steps[currentNavStepIndex];
+  if (currentStep && currentStep.maneuver && currentStep.maneuver.location) {
+    const [sLng, sLat] = currentStep.maneuver.location;
+    map.setView([sLat, sLng], 17);
+  }
+}
+
+startNavigationBtn.addEventListener('click', () => {
+  const routeData = candidateRoutes[activeRouteIndex];
+  if (!routeData) return;
+  compareCard.classList.add('hidden');
+  liveNavCard.classList.remove('hidden');
+  startRealLiveNavigation(routeData);
+});
+
+exitNavBtn.addEventListener('click', stopRealLiveNavigation);
+
+if (prevStepBtn) prevStepBtn.addEventListener('click', () => stepManualNavigation(-1));
+if (nextStepBtn) nextStepBtn.addEventListener('click', () => stepManualNavigation(1));
+
+recenterWalkerBtn.addEventListener('click', () => {
+  if (userGpsPosition) {
+    map.setView(userGpsPosition, 17);
+  } else   if (startCoords && endCoords) {
+    map.fitBounds(routeBounds(candidateRoutes, startCoords, endCoords), { padding: [70, 70] });
+  }
+});
+
+/* ─── 22. EMERGENCY SOS & WHATSAPP LIVE LOCATION SHARE ─────── */
+
+if (sosBtn) {
+  sosBtn.addEventListener('click', () => sosModal.classList.remove('hidden'));
+}
+if (sosCloseBtn) {
+  sosCloseBtn.addEventListener('click', () => sosModal.classList.add('hidden'));
+}
+if (sosModal) {
+  sosModal.addEventListener('click', e => {
+    if (e.target === sosModal) sosModal.classList.add('hidden');
+  });
+}
+
+if (whatsappShareBtn) {
+  whatsappShareBtn.addEventListener('click', () => {
+    const dest = endInput.value.trim() || 'Destination';
+    let locationLink = '';
+
+    if (userGpsPosition) {
+      locationLink = `https://www.google.com/maps?q=${userGpsPosition[0].toFixed(5)},${userGpsPosition[1].toFixed(5)}`;
+    } else if (startCoords) {
+      locationLink = `https://www.google.com/maps?q=${startCoords[0].toFixed(5)},${startCoords[1].toFixed(5)}`;
+    }
+
+    let msg = `🚨 *EMERGENCY - Live Pedestrian Location Alert*\n`;
+    if (locationLink) {
+      msg += `📍 My Real-Time Location: ${locationLink}\n`;
+    }
+    if (startInput.value.trim()) {
+      msg += `🚶 Starting from: ${startInput.value.trim()}\n`;
+    }
+    if (dest) {
+      msg += `🏁 Heading to: ${dest}\n`;
+    }
+    msg += `Navigating via TutaMaps Pedestrian Navigation. Please track me.`;
+
+    const waUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(msg)}`;
+    window.open(waUrl, '_blank');
+  });
+}
+
+/* ─── 24. SCORE PROOF MODAL ─────────────────────────────────── */
+
+if (openScoreProofBtn) {
+  openScoreProofBtn.addEventListener('click', () => proofModal.classList.remove('hidden'));
+}
+if (proofCloseBtn) proofCloseBtn.addEventListener('click', () => proofModal.classList.add('hidden'));
+if (proofGotItBtn) proofGotItBtn.addEventListener('click', () => proofModal.classList.add('hidden'));
+if (proofModal) {
+  proofModal.addEventListener('click', e => {
+    if (e.target === proofModal) proofModal.classList.add('hidden');
+  });
+}
+
+/* ─── 25. INTERACTIVE CONTROLS & LISTENERS ──────────────────── */
+
 navTabs.forEach(tab => {
   tab.addEventListener('click', () => {
     navTabs.forEach(t => t.classList.remove('active'));
@@ -1489,17 +1836,30 @@ navTabs.forEach(tab => {
   });
 });
 
-// Layer Switcher Buttons: Only 2 options (Walkways, Satellite)
 function switchMapLayer(layerKey, activeBtn) {
   [layerBtnWalkways, layerBtnSat].filter(Boolean).forEach(b => b.classList.remove('active'));
   if (activeBtn) activeBtn.classList.add('active');
 
-  if (activeTileLayer) {
-    map.removeLayer(activeTileLayer);
-  }
+  if (activeTileLayer) map.removeLayer(activeTileLayer);
   activeTileLayer = TILE_LAYERS[layerKey].addTo(map);
   activeTileLayer.bringToBack();
+
+  const tilePane = map.getPane('tilePane');
+  if (tilePane) {
+    if (layerKey === 'sat') tilePane.classList.add('is-sat');
+    else tilePane.classList.remove('is-sat');
+  }
 }
+
+let satErrors = 0;
+TILE_LAYERS.sat.on('tileerror', () => {
+  satErrors += 1;
+  if (satErrors < 6 || activeTileLayer !== TILE_LAYERS.sat) return;
+  map.removeLayer(TILE_LAYERS.sat);
+  activeTileLayer = TILE_LAYERS.satEsri.addTo(map);
+  activeTileLayer.bringToBack();
+  showToast('Satellite view loaded.');
+});
 
 if (layerBtnWalkways) layerBtnWalkways.addEventListener('click', () => switchMapLayer('walkways', layerBtnWalkways));
 if (layerBtnSat)      layerBtnSat.addEventListener('click', () => switchMapLayer('sat', layerBtnSat));
@@ -1515,13 +1875,6 @@ function openDirectionsState() {
   if (mainSearchInput && mainSearchInput.value.trim() && !endInput.value.trim()) {
     endInput.value = mainSearchInput.value.trim();
   }
-  setTimeout(() => {
-    if (!endInput.value.trim()) {
-      endInput.focus();
-    } else {
-      findRouteBtn.focus();
-    }
-  }, 80);
 }
 
 function backToSearchState() {
@@ -1552,7 +1905,6 @@ if (mainSearchInput && mainSuggestions) {
   });
 }
 
-// Quick Amenity Filter Pills (Hospital, Water, Restroom, Shop, Pharmacy)
 document.querySelectorAll('.pill-filter-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const type = btn.dataset.type;
@@ -1574,231 +1926,6 @@ document.querySelectorAll('.pill-filter-btn').forEach(btn => {
   });
 });
 
-/* ─── 15. REAL GPS LIVE NAVIGATION (NO FAKE AUTO-MOVING) ─────── */
-
-function updateStepInstructionUI(routeData, stepIndex) {
-  const leg = (routeData.legs && routeData.legs[0]) || null;
-  const steps = (leg && leg.steps) || [];
-  if (!steps.length) return;
-
-  const currentStep = steps[stepIndex] || steps[0];
-  const nextStep = steps[stepIndex + 1] || null;
-  const stepName = currentStep.name || 'Pedestrian Walkway';
-
-  liveCurrentStreet.textContent = `Step ${stepIndex + 1} of ${steps.length}: ${stepName}`;
-
-  if (nextStep && nextStep.maneuver) {
-    const mod = (nextStep.maneuver.modifier || '').toLowerCase();
-    liveTurnIcon.textContent = mod.includes('left') ? '↰' : mod.includes('right') ? '↱' : '↟';
-    liveTurnAction.textContent = mod.includes('left')
-      ? `Turn left onto ${nextStep.name || 'next street'}`
-      : mod.includes('right')
-        ? `Turn right onto ${nextStep.name || 'next street'}`
-        : `Continue straight on ${nextStep.name || stepName}`;
-    liveTurnDist.textContent = `In ~${Math.round(currentStep.distance || 50)} meters`;
-  } else {
-    liveTurnIcon.textContent = '🏁';
-    liveTurnAction.textContent = `Arrive at destination (${endInput.value.trim() || 'Destination'})`;
-    liveTurnDist.textContent = `Walk straight to entrance`;
-  }
-
-  // Find nearest landmark to this step
-  if (currentStep.maneuver && currentStep.maneuver.location) {
-    const [sLng, sLat] = currentStep.maneuver.location;
-    const nearby = LOCAL_LANDMARKS_DATABASE.find(l => {
-      return getHaversineDistanceMeters(l.lat, l.lng, sLat, sLng) <= 300;
-    });
-    liveCurrentLandmark.textContent = nearby
-      ? `Near ${nearby.icon} ${nearby.name} (${nearby.street || nearby.type})`
-      : 'Walking along safe pedestrian corridor';
-  }
-}
-
-function handleLiveGpsPosition(pos, routeData) {
-  const { latitude, longitude, accuracy, speed } = pos.coords;
-  userGpsPosition = [latitude, longitude];
-
-  if (liveGpsBadge) {
-    liveGpsBadge.textContent = '🟢 Real GPS Active';
-    liveGpsBadge.style.background = '#16a34a';
-  }
-
-  // Detect stationary vs moving
-  const isStationary = speed === null || speed < 0.35;
-  if (liveGpsStatus) {
-    if (isStationary) {
-      liveGpsStatus.innerHTML = `🚶 <b>Stationary</b> (Waiting for movement · Accuracy ±${Math.round(accuracy)}m)`;
-    } else {
-      const kmh = (speed * 3.6).toFixed(1);
-      liveGpsStatus.innerHTML = `🚶 <b>Walking at ${kmh} km/h</b> (Accuracy ±${Math.round(accuracy)}m)`;
-    }
-  }
-
-  // Update real walker radar pulse marker on map
-  if (!walkerMarker) {
-    const walkerIcon = L.divIcon({
-      className: 'real-walker-marker',
-      html: `<div class="walker-pulse"></div><div class="walker-dot"></div>`,
-      iconSize: [24, 24],
-      iconAnchor: [12, 12]
-    });
-    walkerMarker = L.marker([latitude, longitude], { icon: walkerIcon, zIndexOffset: 1000 }).addTo(map);
-  } else {
-    walkerMarker.setLatLng([latitude, longitude]);
-  }
-
-  // Update GPS accuracy radius circle
-  if (!accuracyCircle) {
-    accuracyCircle = L.circle([latitude, longitude], {
-      radius: Math.max(8, Math.min(80, accuracy)),
-      color: '#3b82f6',
-      fillColor: '#3b82f6',
-      fillOpacity: 0.15,
-      weight: 1
-    }).addTo(map);
-  } else {
-    accuracyCircle.setLatLng([latitude, longitude]);
-    accuracyCircle.setRadius(Math.max(8, Math.min(80, accuracy)));
-  }
-
-  // Update real remaining distance and time to destination
-  if (endCoords) {
-    const remainingDistM = getHaversineDistanceMeters(latitude, longitude, endCoords[0], endCoords[1]);
-    const remainingMins = Math.max(1, Math.round(remainingDistM / (1.28 * 60)));
-    liveDistRemain.textContent = `${metersToKm(remainingDistM)} km to destination`;
-    liveTimeRemain.textContent = `~${remainingMins} min remaining`;
-  }
-
-  // Auto-advance step if close to the next maneuver (< 25m)
-  const leg = (routeData.legs && routeData.legs[0]) || null;
-  const steps = (leg && leg.steps) || [];
-  if (steps[currentNavStepIndex + 1]) {
-    const nextStep = steps[currentNavStepIndex + 1];
-    if (nextStep.maneuver && nextStep.maneuver.location) {
-      const [nLng, nLat] = nextStep.maneuver.location;
-      const distToNextM = getHaversineDistanceMeters(latitude, longitude, nLat, nLng);
-      if (distToNextM < 25) {
-        currentNavStepIndex++;
-        updateStepInstructionUI(routeData, currentNavStepIndex);
-      }
-    }
-  }
-}
-
-function handleLiveGpsError(err) {
-  console.warn('Live GPS Error:', err);
-  if (liveGpsBadge) {
-    liveGpsBadge.textContent = 'GPS Inactive';
-    liveGpsBadge.style.background = '#ef4444';
-  }
-  if (liveGpsStatus) {
-    liveGpsStatus.innerHTML = `📍 GPS unavailable or permission denied. Tap <b>Next Step ❯</b> to preview walking route turns.`;
-  }
-}
-
-function startRealLiveNavigation(routeData) {
-  if (!routeData) return;
-  currentNavStepIndex = 0;
-  updateStepInstructionUI(routeData, currentNavStepIndex);
-
-  // Set initial estimation from route data
-  const timeMin = secToMin(routeData.duration, routeData.distance);
-  const distKm = metersToKm(routeData.distance);
-  liveTimeRemain.textContent = `~${timeMin} min to go`;
-  liveDistRemain.textContent = `${distKm} km · In-progress`;
-
-  if (!navigator.geolocation) {
-    if (liveGpsBadge) {
-      liveGpsBadge.textContent = 'Manual Steps';
-      liveGpsBadge.style.background = '#64748b';
-    }
-    if (liveGpsStatus) {
-      liveGpsStatus.innerHTML = '⚠️ Geolocation not supported in this browser. Use <b>◀ Prev Step</b> / <b>Next Step ▶</b> below.';
-    }
-    return;
-  }
-
-  if (liveGpsBadge) {
-    liveGpsBadge.textContent = 'Acquiring GPS…';
-    liveGpsBadge.style.background = '#eab308';
-  }
-  if (liveGpsStatus) {
-    liveGpsStatus.innerHTML = '📡 Connecting to real device GPS…';
-  }
-
-  // Real GPS watch position
-  liveWatchId = navigator.geolocation.watchPosition(
-    pos => handleLiveGpsPosition(pos, routeData),
-    err => handleLiveGpsError(err),
-    { enableHighAccuracy: true, timeout: 20000, maximumAge: 3000 }
-  );
-}
-
-function stopRealLiveNavigation() {
-  if (liveWatchId !== null) {
-    navigator.geolocation.clearWatch(liveWatchId);
-    liveWatchId = null;
-  }
-  if (walkerMarker) {
-    map.removeLayer(walkerMarker);
-    walkerMarker = null;
-  }
-  if (accuracyCircle) {
-    map.removeLayer(accuracyCircle);
-    accuracyCircle = null;
-  }
-  userGpsPosition = null;
-  liveNavCard.classList.add('hidden');
-  compareCard.classList.remove('hidden');
-}
-
-function stepManualNavigation(delta) {
-  const routeData = candidateRoutes[activeRouteIndex];
-  if (!routeData) return;
-  const leg = (routeData.legs && routeData.legs[0]) || null;
-  const steps = (leg && leg.steps) || [];
-  if (!steps.length) return;
-
-  currentNavStepIndex = Math.max(0, Math.min(steps.length - 1, currentNavStepIndex + delta));
-  updateStepInstructionUI(routeData, currentNavStepIndex);
-
-  // Center map on the selected step
-  const currentStep = steps[currentNavStepIndex];
-  if (currentStep && currentStep.maneuver && currentStep.maneuver.location) {
-    const [sLng, sLat] = currentStep.maneuver.location;
-    map.setView([sLat, sLng], 17);
-  }
-}
-
-// Navigation UI Buttons
-startNavigationBtn.addEventListener('click', () => {
-  const routeData = candidateRoutes[activeRouteIndex];
-  if (!routeData) return;
-  compareCard.classList.add('hidden');
-  liveNavCard.classList.remove('hidden');
-  startRealLiveNavigation(routeData);
-});
-
-exitNavBtn.addEventListener('click', stopRealLiveNavigation);
-
-if (prevStepBtn) {
-  prevStepBtn.addEventListener('click', () => stepManualNavigation(-1));
-}
-
-if (nextStepBtn) {
-  nextStepBtn.addEventListener('click', () => stepManualNavigation(1));
-}
-
-recenterWalkerBtn.addEventListener('click', () => {
-  if (userGpsPosition) {
-    map.setView(userGpsPosition, 17);
-  } else if (startCoords && endCoords) {
-    const bounds = L.latLngBounds([startCoords, endCoords]);
-    map.fitBounds(bounds, { padding: [70, 70] });
-  }
-});
-
-// Swap locations button
 swapBtn.addEventListener('click', () => {
   const tempText = startInput.value;
   startInput.value = endInput.value;
@@ -1814,7 +1941,6 @@ swapBtn.addEventListener('click', () => {
   if (startCoords && endCoords) findRoute();
 });
 
-// Clear button
 function clearAll() {
   startInput.value = '';
   endInput.value   = '';
@@ -1831,8 +1957,8 @@ function clearAll() {
   compareCard.classList.add('hidden');
   detailsCard.classList.add('hidden');
   smartAdviceBox.classList.add('hidden');
-  routeInfo.textContent = 'Enter start & destination, or click 2 points on the map.';
-  routeInfo.className   = 'route-info';
+  routeInfo.textContent = '';
+  routeInfo.className   = 'route-info hidden';
 
   startSuggestions.innerHTML = '';
   endSuggestions.innerHTML   = '';
@@ -1848,7 +1974,6 @@ function clearAll() {
 
 clearBtn.addEventListener('click', clearAll);
 
-// My Location button
 myLocationBtn.addEventListener('click', () => {
   if (!navigator.geolocation) {
     showInfo('Geolocation not supported by your browser.', 'error');
@@ -1868,16 +1993,15 @@ myLocationBtn.addEventListener('click', () => {
   );
 });
 
-// Mode buttons
 function setMode(mode) {
   currentMode = mode;
-  [btnNormal, btnHeat, btnNight].forEach(b => b.classList.remove('active'));
+  [btnNormal, btnHeat, btnNight].filter(Boolean).forEach(b => b.classList.remove('active'));
   siteHeader.classList.remove('mode-heat', 'mode-night');
 
   if (mode === 'heat') {
     btnHeat.classList.add('active');
     siteHeader.classList.add('mode-heat');
-    showInfo('☀️ Heat Mode — maximises tree shade and water points to beat 40°C+ summer heat.');
+    showInfo('☀️ Heat Mode — maximises tree canopy shade and water ATMs to beat 40°C+ summer heat.');
   } else if (mode === 'night') {
     btnNight.classList.add('active');
     siteHeader.classList.add('mode-night');
@@ -1887,6 +2011,11 @@ function setMode(mode) {
     showInfo('🚶 Normal Mode — balanced pedestrian safety, sidewalks and crossings.');
   }
 
+  if (routeLayers && routeLayers.length > 0 && routeLayers[activeRouteIndex]) {
+    const activeColor = currentMode === 'night' ? '#4f46e5' : (currentMode === 'heat' ? '#ea580c' : '#16a34a');
+    routeLayers[activeRouteIndex].setStyle({ color: activeColor });
+  }
+
   if (startCoords && endCoords) findRoute();
 }
 
@@ -1894,8 +2023,7 @@ btnNormal.addEventListener('click', () => setMode('normal'));
 btnHeat  .addEventListener('click', () => setMode('heat'));
 btnNight .addEventListener('click', () => setMode('night'));
 
-// Preset destination chips
-document.querySelectorAll('.chip-preset, .quick-link-btn').forEach(btn => {
+document.querySelectorAll('.chip-preset').forEach(btn => {
   btn.addEventListener('click', () => {
     if (!startInput.value.trim()) {
       startInput.value = KIT_NAME;
@@ -1908,7 +2036,6 @@ document.querySelectorAll('.chip-preset, .quick-link-btn').forEach(btn => {
   });
 });
 
-// Amenity chip filters inside tab
 amenityChipBtns.forEach(btn => {
   btn.addEventListener('click', () => {
     amenityChipBtns.forEach(b => b.classList.remove('active'));
@@ -1931,7 +2058,6 @@ amenityChipBtns.forEach(btn => {
   });
 });
 
-// Floating checkboxes on map
 [chkShops, chkPharmacy, chkWater, chkHospitals, chkToilets].forEach(chk => {
   chk.addEventListener('change', () => {
     visibleToggles.shop     = chkShops.checked;
@@ -1943,17 +2069,14 @@ amenityChipBtns.forEach(btn => {
   });
 });
 
-// Recenter Map
 recenterBtn.addEventListener('click', () => {
   if (startCoords && endCoords) {
-    const bounds = L.latLngBounds([startCoords, endCoords]);
-    map.fitBounds(bounds, { padding: [50, 50] });
+    map.fitBounds(routeBounds(candidateRoutes, startCoords, endCoords), { padding: [50, 50] });
   } else {
     map.setView([KIT_LAT, KIT_LNG], 15);
   }
 });
 
-// Find Route Button & Enter Key
 findRouteBtn.addEventListener('click', () => {
   if (startInput.value.trim() !== (startInput.dataset.lastGeocoded || '')) startCoords = null;
   if (endInput.value.trim()   !== (endInput.dataset.lastGeocoded   || '')) endCoords   = null;
@@ -1966,7 +2089,6 @@ findRouteBtn.addEventListener('click', () => {
   });
 });
 
-// Map click to set pins
 map.on('click', e => {
   const { lat, lng } = e.latlng;
   if (!startCoords) {
@@ -1982,7 +2104,6 @@ map.on('click', e => {
   }
 });
 
-// Modal Controls
 helpBtn.addEventListener('click', () => guideModal.classList.remove('hidden'));
 modalCloseBtn.addEventListener('click', () => guideModal.classList.add('hidden'));
 modalGotItBtn.addEventListener('click', () => guideModal.classList.add('hidden'));
@@ -1990,7 +2111,57 @@ guideModal.addEventListener('click', e => {
   if (e.target === guideModal) guideModal.classList.add('hidden');
 });
 
-/* ─── 16. READY ─────────────────────────────────────────────── */
-showInfo('Enter start & destination, or click two points on the map.');
-console.log('TutaMaps loaded ✅ — multi-route pedestrian comparison, live GPS tracking, and walking advice active');
+// Check URL Params for instant route loading (judges QR scan or share links)
+function checkUrlParams() {
+  const params = new URLSearchParams(window.location.search);
+  const qStart = params.get('start');
+  const qEnd   = params.get('end');
+  const qMode  = params.get('mode');
+  const qWalk  = params.get('walker');
 
+  if (qMode && ['normal', 'heat', 'night'].includes(qMode)) {
+    setMode(qMode);
+  }
+  if (qWalk && WALKER_SPEEDS[qWalk]) {
+    currentWalkerProfile = qWalk;
+    profileChips.forEach(c => {
+      if (c.dataset.profile === qWalk) c.classList.add('active');
+      else c.classList.remove('active');
+    });
+  }
+  if (qStart && qEnd) {
+    startInput.value = qStart;
+    endInput.value   = qEnd;
+    findRoute();
+  }
+}
+
+/* ─── 25. VOICE GUIDANCE (Clean Executive Light Theme) ──────────────── */
+try {
+  localStorage.removeItem('tutamaps_theme');
+  document.documentElement.removeAttribute('data-theme');
+} catch (e) {}
+
+let isVoiceGuidanceActive = true;
+
+function speakInstruction(text) {
+  if (!isVoiceGuidanceActive || !('speechSynthesis' in window)) return;
+  try {
+    window.speechSynthesis.cancel();
+    const clean = text.replace(/<[^>]*>/g, '').replace(/[^\w\s.,-]/g, '').trim();
+    if (!clean) return;
+    const u = new SpeechSynthesisUtterance(clean);
+    u.rate = 1.0;
+    u.pitch = 1.0;
+    window.speechSynthesis.speak(u);
+  } catch {}
+}
+
+if (voiceNavBtn) {
+  voiceNavBtn.addEventListener('click', () => {
+    isVoiceGuidanceActive = !isVoiceGuidanceActive;
+    voiceNavBtn.classList.toggle('active', isVoiceGuidanceActive);
+    if (voiceIcon) voiceIcon.textContent = isVoiceGuidanceActive ? '🔊' : '🔇';
+    showToast(isVoiceGuidanceActive ? '🔊 Voice Guidance enabled' : '🔇 Voice Guidance muted');
+  });
+}

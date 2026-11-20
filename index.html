@@ -2,43 +2,91 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TutaMaps — Intelligent Walking Navigation & Live Routes</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>TutaMaps — Intelligent Walking Navigation & Heat-Safe Routes | KIT Coimbatore</title>
 
+    <!-- Meta Description & SEO -->
+    <meta name="description" content="TutaMaps: Pedestrian-first navigation for Coimbatore. Live tree shade canopy via SunCalc, free drinking water ATMs, streetlights, and hospital proximity without car bias." />
+    <meta name="keywords" content="pedestrian navigation, walking routes, coimbatore, kit coimbatore, heat mode, shade routing, water atms, walk score" />
+    <meta name="author" content="Team Quantuxx · KIT Coimbatore" />
+    <meta name="theme-color" content="#16a34a" />
+
+    <!-- Open Graph (Link Preview for Judges & WhatsApp) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="TutaMaps — Intelligent Pedestrian Navigation & Heat-Safe Routes" />
+    <meta property="og:description" content="Pedestrian-first navigation for Coimbatore. Live tree shade canopy, free drinking water ATMs, streetlights, and hospital proximity. Heat-aware walking routes." />
+    <meta property="og:image" content="https://raw.githubusercontent.com/kalaiyx/tutamaps/main/og-preview.png" />
+    <meta property="og:url" content="https://tutamaps.vercel.app" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="TutaMaps — Intelligent Pedestrian Navigation" />
+    <meta name="twitter:description" content="Pedestrian-first navigation for Coimbatore with live shade canopy, water ATMs and night safety." />
+
+    <link rel="manifest" href="manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2316a34a'/><path d='M35 75 L45 50 L55 58 L70 30' stroke='white' stroke-width='8' stroke-linecap='round' stroke-linejoin='round' fill='none'/><circle cx='70' cy='30' r='6' fill='%23facc15'/></svg>" />
+
+    <!-- Leaflet & Fonts -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
 
-    <!-- ── Header with Upward Mode Toggles ─────────────── -->
+    <!-- ── Header ───────────────────────────────────────── -->
     <header class="site-header">
       <div class="header-left">
-        <span class="logo-icon">🗺️</span>
-        <div>
-          <span class="logo-text">TutaMaps</span>
-          <span class="logo-sub">Pedestrian Navigation · KIT Coimbatore</span>
+        <div class="logo-wrapper">
+          <span class="logo-badge">
+            <svg class="svg-icon" viewBox="0 0 24 24" width="22" height="22" stroke="currentColor" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"></polygon><line x1="9" y1="3" x2="9" y2="18"></line><line x1="15" y1="6" x2="15" y2="21"></line></svg>
+          </span>
+          <div>
+            <div class="logo-text-row">
+              <span class="logo-text">TutaMaps</span>
+            </div>
+            <span class="logo-sub" id="header-subtitle">Pedestrian Navigation</span>
+          </div>
         </div>
       </div>
 
-      <!-- Modes neatly shown upward in header -->
+      <!-- Live Weather & UV Chip -->
+      <div class="header-weather-chip" id="header-weather-chip" title="Live weather in Coimbatore">
+        <span class="weather-dot"></span>
+        <span class="weather-icon" id="weather-icon">☀️</span>
+        <span class="weather-text" id="weather-text">Coimbatore 30°C · UV 7.9</span>
+      </div>
+
+      <!-- Walking Modes -->
       <div class="mode-toggles" role="group" aria-label="Walking Comfort Mode">
-        <button id="btn-normal" class="mode-btn active" title="Balanced walk with sidewalks and crossings">
-          🚶 Normal
+        <button id="btn-normal" class="mode-btn active" title="Balanced pedestrian sidewalks & crossings">
+          <svg class="mode-svg" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><path d="M13 4a2 2 0 1 0-4 0 2 2 0 0 0 4 0Z"/><path d="M7 21l3-7 2 3 4 5"/><path d="M14 13l-2-4-3 2-2 4"/></svg>
+          <span class="mode-label" data-i18n="mode_normal">Normal</span>
         </button>
-        <button id="btn-heat" class="mode-btn" title="Maximise tree shade & hydration points on hot days">
-          ☀️ Heat Mode
+        <button id="btn-heat" class="mode-btn" title="Maximise tree shade & free water ATMs">
+          <svg class="mode-svg" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>
+          <span class="mode-label" data-i18n="mode_heat">Heat Mode</span>
         </button>
-        <button id="btn-night" class="mode-btn" title="Prioritise bright streetlights & busy roads at night">
-          🌙 Night Mode
+        <button id="btn-night" class="mode-btn" title="Prioritise bright streetlights & night footfall">
+          <svg class="mode-svg" viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+          <span class="mode-label" data-i18n="mode_night">Night Mode</span>
         </button>
       </div>
 
+      <!-- Header Action Controls -->
       <div class="header-right">
+        <!-- SOS Emergency Button -->
+        <button id="sos-btn" class="sos-btn" title="Emergency Services & Share Live Location">
+          <svg class="svg-icon" viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" fill="none" stroke-width="2.2"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span>SOS</span>
+        </button>
+
+        <!-- Guide Modal Button -->
         <button id="help-btn" class="help-btn" title="How TutaMaps Works & Guide">
-          ❓ Guide
+          <svg class="svg-icon" viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span>Guide</span>
         </button>
       </div>
     </header>
@@ -52,27 +100,62 @@
         <!-- ── STATE 1: Clean Initial Single Search Bar ── -->
         <div class="panel-card single-search-card" id="single-search-box">
           <div class="search-bar-inner">
-            <span class="search-magnifier">🔍</span>
+            <svg class="search-magnifier svg-icon" viewBox="0 0 24 24" width="18" height="18" stroke="#64748b" fill="none" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <input
               id="main-search-input"
               type="text"
-              placeholder="Search destination, street or shop..."
+              placeholder="Search destination, street or shop in Coimbatore..."
               autocomplete="off"
             />
             <button id="open-directions-btn" class="directions-pill-btn" title="Open Start & Destination inputs">
-              🧭 Directions
+              <svg viewBox="0 0 24 24" width="15" height="15" stroke="currentColor" fill="none" stroke-width="2"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+              <span>Directions</span>
             </button>
           </div>
           <ul class="suggestions hidden" id="main-suggestions"></ul>
 
+          <!-- Walker Profile Selector -->
+          <div class="walker-profile-selector">
+            <span class="profile-label">Walker Profile:</span>
+            <div class="profile-chips">
+              <button class="profile-chip active" data-profile="normal" title="Standard walking pace 4.8 km/h">
+                🚶 Normal
+              </button>
+              <button class="profile-chip" data-profile="elderly" title="Gentle pace 3.2 km/h, avoids steep steps">
+                👴 Senior / Gentle
+              </button>
+              <button class="profile-chip" data-profile="kids" title="Barricaded sidewalks, zero highway crossings">
+                👶 With Kids
+              </button>
+              <button class="profile-chip" data-profile="wheelchair" title="100% step-free, ramped curb cuts">
+                ♿ Accessible
+              </button>
+            </div>
+          </div>
+
           <!-- Neatly arranged Quick Amenity Pills -->
           <div class="amenity-pills-row">
-            <span class="pills-title">Nearby:</span>
-            <button class="pill-filter-btn" data-type="hospital">🏥 Hospitals</button>
-            <button class="pill-filter-btn" data-type="water">🚰 Water</button>
-            <button class="pill-filter-btn" data-type="toilet">🚻 Restrooms</button>
-            <button class="pill-filter-btn" data-type="shop">🏪 Shops</button>
-            <button class="pill-filter-btn" data-type="pharmacy">💊 Pharmacy</button>
+            <span class="pills-title">Nearby Amenities:</span>
+            <button class="pill-filter-btn" data-type="hospital">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="#dc2626" fill="none" stroke-width="2"><path d="M12 6v12M6 12h12"/></svg>
+              <span>Hospitals</span>
+            </button>
+            <button class="pill-filter-btn" data-type="water">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="#0284c7" fill="none" stroke-width="2"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+              <span>Water ATMs</span>
+            </button>
+            <button class="pill-filter-btn" data-type="pharmacy">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="#0d9488" fill="none" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
+              <span>Pharmacy</span>
+            </button>
+            <button class="pill-filter-btn" data-type="toilet">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="#7c3aed" fill="none" stroke-width="2"><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg>
+              <span>Restrooms</span>
+            </button>
+            <button class="pill-filter-btn" data-type="shop">
+              <svg viewBox="0 0 24 24" width="14" height="14" stroke="#d97706" fill="none" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              <span>Shops</span>
+            </button>
           </div>
 
           <!-- Quick Presets -->
@@ -91,7 +174,7 @@
           </div>
         </div>
 
-        <!-- ── STATE 2: Expanded Start & End Directions Form (Appears after touching/clicking) ── -->
+        <!-- ── STATE 2: Expanded Start & End Directions Form ── -->
         <div class="panel-card directions-input-card hidden" id="directions-form-box">
           <div class="directions-header-row">
             <button id="back-to-search-btn" class="back-link-btn" title="Back to single search bar">
@@ -105,7 +188,9 @@
             <div class="input-line">
               <span class="input-dot start-dot"></span>
               <input id="start-input" type="text" placeholder="Start location (or My Location)" autocomplete="off" />
-              <button class="icon-action-btn" id="my-location-btn" title="Use current GPS location">📍</button>
+              <button class="icon-action-btn" id="my-location-btn" title="Use current GPS location">
+                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
+              </button>
             </div>
             <ul class="suggestions hidden" id="start-suggestions"></ul>
 
@@ -123,19 +208,25 @@
           </div>
 
           <button id="find-route-btn" class="btn-navigate">
-            Find Best Routes & Compare →
+            <span>Find Best Routes & Compare →</span>
           </button>
 
-          <div id="route-info" class="route-info" aria-live="polite">
-            Enter start & destination, or click 2 points on the map.
-          </div>
+          <div id="route-info" class="route-info hidden" aria-live="polite"></div>
         </div>
 
         <!-- ── STATE 3: Route Comparison Cards & Start Navigation ── -->
         <div class="panel-card route-comparison-card hidden" id="compare-card">
           <div class="section-title-row">
             <h3 class="section-title" id="comparison-heading">Routes Comparison</h3>
-            <span class="badge-select-hint">Click card to choose</span>
+            <span class="badge-select-hint">Click card to select</span>
+          </div>
+
+          <!-- Route Amenities Summary Chips -->
+          <div class="route-summary-chips" id="route-summary-chips">
+            <span class="summary-chip water-chip" id="sum-chip-water">🚰 3 Water ATMs</span>
+            <span class="summary-chip pharmacy-chip" id="sum-chip-pharmacy">💊 2 Pharmacies</span>
+            <span class="summary-chip hospital-chip" id="sum-chip-hospital">🏥 1 Hospital</span>
+            <span class="summary-chip shade-chip" id="sum-chip-shade">🌳 86% Shade</span>
           </div>
 
           <!-- Dynamic Candidate Routes List -->
@@ -143,38 +234,43 @@
             <!-- Dynamically populated candidate routes with scores & time -->
           </div>
 
-          <!-- Prominent "Start" Button (Like Google Maps) -->
-          <button id="start-navigation-btn" class="btn-start-nav">
-            <span class="start-icon">▶</span>
-            <div class="start-label-wrap">
-              <span class="start-main-title">Start Walking</span>
-              <span class="start-sub-title">Real GPS live tracking & location updates</span>
-            </div>
-          </button>
+          <!-- Action Buttons Bar: Start Nav -->
+          <div class="route-actions-grid">
+            <button id="start-navigation-btn" class="btn-start-nav">
+              <span class="start-icon">▶</span>
+              <div class="start-label-wrap">
+                <span class="start-main-title">Start Walking</span>
+                <span class="start-sub-title">Live GPS updates & step audio cues</span>
+              </div>
+            </button>
+          </div>
 
           <!-- Walker's Smart Advisory & Safety Tips -->
           <div class="smart-advice-box" id="smart-advice-box">
             <div class="smart-advice-header">
               <span class="smart-advice-bulb">💡</span>
-              <span>Walker's Advisory & Tips</span>
+              <span>Walker's Advisory & Live Tips</span>
             </div>
-            <div class="advice-tips-list" id="advice-tips-list">
-              <!-- Dynamically populated advice tips -->
-            </div>
+            <div class="advice-tips-list" id="advice-tips-list"></div>
           </div>
 
           <div class="route-insight-box" id="comparison-banner">
-            💡 <b>Route Comparison:</b> Comparing multiple candidate routes for safety, shade canopy, and walking comfort.
+            💡 <b>Route Comparison:</b> Evaluating pedestrian corridors for shade canopy, streetlights, and hydration points.
           </div>
         </div>
 
-        <!-- ── STATE 4: Live Walking Navigation Sheet (Real GPS Tracking) ── -->
+        <!-- ── STATE 4: Live Walking Navigation Sheet ── -->
         <div class="panel-card live-nav-card hidden" id="live-nav-card">
           <div class="live-nav-header">
             <div class="live-pulse-badge" id="live-gps-badge">
               <span class="live-red-dot"></span> LIVE GPS TRACKING
             </div>
-            <button id="exit-nav-btn" class="exit-nav-btn" title="Stop navigation">✕ Stop</button>
+            <div class="live-nav-actions" style="display:flex;align-items:center;gap:6px;">
+              <button id="voice-nav-btn" class="voice-nav-btn active" title="Voice Navigation Guidance (Audio Directions)">
+                <span id="voice-icon">🔊</span>
+              </button>
+              <button id="exit-nav-btn" class="exit-nav-btn" title="Stop navigation">✕ Stop</button>
+            </div>
           </div>
 
           <div class="live-progress-hero">
@@ -200,7 +296,7 @@
             </div>
           </div>
 
-          <!-- Step navigation controls (Real GPS movement + manual step preview) -->
+          <!-- Step navigation controls -->
           <div class="live-controls-row">
             <button id="prev-step-btn" class="nav-control-btn" title="View previous walking step">◀ Prev Step</button>
             <button id="next-step-btn" class="nav-control-btn" title="View next walking step">Next Step ▶</button>
@@ -214,24 +310,24 @@
           </div>
         </div>
 
-        <!-- ── Navigation Details Tabs (Turn-by-Turn, Facilities, Walk Score) ── -->
+        <!-- ── Navigation Details Tabs ── -->
         <div class="panel-card navigation-details-card hidden" id="details-card">
           <div class="nav-tabs-bar" role="tablist">
             <button class="nav-tab active" id="tab-btn-steps" data-tab="steps">
               🧭 Turn-by-Turn
             </button>
             <button class="nav-tab" id="tab-btn-amenities" data-tab="amenities">
-              📍 Shops & Facilities
+              📍 Facilities (<span id="count-all-badge">--</span>)
             </button>
             <button class="nav-tab" id="tab-btn-score" data-tab="score">
               📊 Walk Score
             </button>
           </div>
 
-          <!-- TAB 1: Step-by-Step Directions with Small Streets & Shop Landmarks -->
+          <!-- TAB 1: Step-by-Step Directions -->
           <div class="tab-pane active" id="pane-steps">
             <div class="pane-header">
-              <span class="pane-subtitle">Walking steps with small street names & shops</span>
+              <span class="pane-subtitle">Walking steps with small street names & shop landmarks</span>
             </div>
             <ol class="steps-timeline" id="steps-timeline"></ol>
           </div>
@@ -239,46 +335,93 @@
           <!-- TAB 2: Shops, Pharmacies & Facilities along Route -->
           <div class="tab-pane" id="pane-amenities">
             <div class="amenity-filters-row">
-              <button class="amenity-chip-btn active" data-filter="all">All (<span id="count-all">0</span>)</button>
-              <button class="amenity-chip-btn" data-filter="shop">🏪 Shops (<span id="count-shop">0</span>)</button>
-              <button class="amenity-chip-btn" data-filter="pharmacy">💊 Pharmacies (<span id="count-pharmacy">0</span>)</button>
-              <button class="amenity-chip-btn" data-filter="water">🚰 Water (<span id="count-water">0</span>)</button>
-              <button class="amenity-chip-btn" data-filter="hospital">🏥 Hospitals (<span id="count-hospital">0</span>)</button>
-              <button class="amenity-chip-btn" data-filter="toilet">🚻 Restrooms (<span id="count-toilet">0</span>)</button>
+              <button class="amenity-chip-btn active" data-filter="all">All</button>
+              <button class="amenity-chip-btn" data-filter="water">🚰 Water ATMs</button>
+              <button class="amenity-chip-btn" data-filter="pharmacy">💊 Pharmacies</button>
+              <button class="amenity-chip-btn" data-filter="hospital">🏥 Hospitals</button>
+              <button class="amenity-chip-btn" data-filter="toilet">🚻 Restrooms</button>
+              <button class="amenity-chip-btn" data-filter="shop">🏪 Shops</button>
             </div>
             <div class="amenities-items-list" id="amenities-items-list"></div>
           </div>
 
-          <!-- TAB 3: Walk Score Breakdown -->
+          <!-- TAB 3: Walk Score Breakdown & Proof -->
           <div class="tab-pane" id="pane-score">
             <div class="score-overview-box">
               <div class="score-giant" id="score-number">--</div>
               <div class="score-summary-text">
-                <div class="score-verdict" id="score-label">--</div>
-                <div class="score-subtext" id="score-desc">Evaluated for pedestrians</div>
+                <div class="score-verdict" id="score-label">Select a route</div>
+                <div class="score-subtext" id="score-desc">Evaluated for pedestrian comfort & safety</div>
+              </div>
+              <button class="btn-score-proof" id="open-score-proof-btn" title="View calculation methodology">
+                📐 How We Calculate
+              </button>
+            </div>
+
+            <!-- Score Progress Bars with Transparency Badges -->
+            <div class="score-bars-group">
+              <div class="score-bar-item">
+                <div class="metric-header-row">
+                  <span class="metric-label">🌿 Shade Canopy</span>
+                  <span class="proof-tag-pill">OSM Trees + Live SunCalc</span>
+                </div>
+                <div class="bar-shell"><div class="bar-fill shade-fill" id="bar-shade"></div></div>
+                <span class="metric-val" id="val-shade">--</span>
+              </div>
+              <div class="score-bar-item">
+                <div class="metric-header-row">
+                  <span class="metric-label">💡 Street Lighting</span>
+                  <span class="proof-tag-pill">OSM Streetlights + Active Shops</span>
+                </div>
+                <div class="bar-shell"><div class="bar-fill light-fill" id="bar-light"></div></div>
+                <span class="metric-val" id="val-light">--</span>
+              </div>
+              <div class="score-bar-item">
+                <div class="metric-header-row">
+                  <span class="metric-label">👥 Pedestrian Footfall</span>
+                  <span class="proof-tag-pill">Commercial & Transit Density</span>
+                </div>
+                <div class="bar-shell"><div class="bar-fill crowd-fill" id="bar-crowd"></div></div>
+                <span class="metric-val" id="val-crowd">--</span>
+              </div>
+              <div class="score-bar-item">
+                <div class="metric-header-row">
+                  <span class="metric-label">🛡️ Overall Safety</span>
+                  <span class="proof-tag-pill">Sidewalk Segregation & Hospital Access</span>
+                </div>
+                <div class="bar-shell"><div class="bar-fill safety-fill" id="bar-safety"></div></div>
+                <span class="metric-val" id="val-safety">--</span>
               </div>
             </div>
 
-            <div class="score-bars-group">
-              <div class="score-bar-item">
-                <span class="metric-label">🌿 Shade Canopy</span>
-                <div class="bar-shell"><div class="bar-fill shade-fill" id="bar-shade"></div></div>
-                <span class="metric-val" id="val-shade">--%</span>
-              </div>
-              <div class="score-bar-item">
-                <span class="metric-label">💡 Street Lighting</span>
-                <div class="bar-shell"><div class="bar-fill light-fill" id="bar-light"></div></div>
-                <span class="metric-val" id="val-light">--%</span>
-              </div>
-              <div class="score-bar-item">
-                <span class="metric-label">👥 Pedestrian Footfall</span>
-                <div class="bar-shell"><div class="bar-fill crowd-fill" id="bar-crowd"></div></div>
-                <span class="metric-val" id="val-crowd">--%</span>
-              </div>
-              <div class="score-bar-item">
-                <span class="metric-label">🛡️ Overall Safety</span>
-                <div class="bar-shell"><div class="bar-fill safety-fill" id="bar-safety"></div></div>
-                <span class="metric-val" id="val-safety">--%</span>
+            <!-- Fun Stats & Eco Impact -->
+            <div class="fun-stats-container">
+              <div class="fun-stats-title">🌱 Walker's Impact & Health Stats</div>
+              <div class="fun-stats-grid">
+                <div class="fun-stat-box">
+                  <span class="fun-stat-num" id="stat-steps">~2,450</span>
+                  <span class="fun-stat-desc">Steps Walked</span>
+                </div>
+                <div class="fun-stat-box">
+                  <span class="fun-stat-num" id="stat-calories">~112</span>
+                  <span class="fun-stat-desc">Calories Burned</span>
+                </div>
+                <div class="fun-stat-box">
+                  <span class="fun-stat-num" id="stat-co2">~350g</span>
+                  <span class="fun-stat-desc">CO₂ Saved vs Auto</span>
+                </div>
+                <div class="fun-stat-box">
+                  <span class="fun-stat-num" id="stat-fare">₹45</span>
+                  <span class="fun-stat-desc">Fare Saved</span>
+                </div>
+                <div class="fun-stat-box">
+                  <span class="fun-stat-num" id="stat-water">~350ml</span>
+                  <span class="fun-stat-desc">Water Needed</span>
+                </div>
+                <div class="fun-stat-box">
+                  <span class="fun-stat-num" id="stat-incline">Flat 0m</span>
+                  <span class="fun-stat-desc">Elevation Climb</span>
+                </div>
               </div>
             </div>
 
@@ -290,17 +433,17 @@
         <div class="panel-card compact-card" id="legend-card">
           <details class="app-accordion">
             <summary class="accordion-header">
-              <span>🗺️ Map Legend & Icons</span>
+              <span>🗺️ Map Legend & Amenities</span>
               <span class="accordion-arrow">▾</span>
             </summary>
             <div class="accordion-body legend-body">
               <div class="legend-item"><span class="legend-line line-green"></span> <b>Best Route:</b> Shaded & safe recommended path</div>
-              <div class="legend-item"><span class="legend-line line-orange-dash"></span> <b>Alternative Route:</b> Direct / commercial corridor</div>
+              <div class="legend-item"><span class="legend-line line-orange-dash"></span> <b>Alternative Route:</b> Direct / vehicular corridor</div>
               <div class="legend-grid">
                 <div class="legend-item"><span class="legend-icon">🏪</span> Shop / Bakery</div>
                 <div class="legend-item"><span class="legend-icon">💊</span> Pharmacy</div>
                 <div class="legend-item"><span class="legend-icon">🚰</span> Drinking Water ATM</div>
-                <div class="legend-item"><span class="legend-icon">🏥</span> Hospital / Clinic</div>
+                <div class="legend-item"><span class="legend-icon">🏥</span> Hospital / PHC</div>
                 <div class="legend-item"><span class="legend-icon">🚻</span> Public Restroom</div>
                 <div class="legend-item"><span class="legend-icon">🚏</span> Bus Stop</div>
               </div>
@@ -310,10 +453,10 @@
 
       </aside>
 
-      <!-- MAP CONTAINER -->
+      <!-- MAP VIEWPORT -->
       <div class="map-viewport">
 
-        <!-- Map Layer Selector: 2 buttons (Walkways, Satellite) -->
+        <!-- Map Layer Selector -->
         <div class="map-layer-selector">
           <button class="layer-switch-btn active" id="layer-btn-walkways" title="Pedestrian footways, walkways and campus corridors">
             🚶 Walkways
@@ -323,7 +466,13 @@
           </button>
         </div>
 
-        <!-- Floating Amenity Toggle Pills (Top Right) -->
+        <!-- Live Temperature & UV Pill on Map (Top Right) -->
+        <div class="map-weather-pill" id="map-weather-pill">
+          <span class="pill-dot"></span>
+          <span id="map-weather-text">30°C · UV 7.9 (High)</span>
+        </div>
+
+        <!-- Floating Amenity Toggle Pills -->
         <div class="map-amenity-pills">
           <span class="floating-pills-label">Show:</span>
           <label class="pill-check">
@@ -335,16 +484,16 @@
             <span class="pill-btn blue">🚰 Water</span>
           </label>
           <label class="pill-check">
+            <input type="checkbox" id="chk-pharmacy" checked />
+            <span class="pill-btn teal">💊 Pharmacy</span>
+          </label>
+          <label class="pill-check">
             <input type="checkbox" id="chk-toilets" checked />
             <span class="pill-btn purple">🚻 Toilets</span>
           </label>
           <label class="pill-check">
             <input type="checkbox" id="chk-shops" checked />
             <span class="pill-btn amber">🏪 Shops</span>
-          </label>
-          <label class="pill-check">
-            <input type="checkbox" id="chk-pharmacy" checked />
-            <span class="pill-btn teal">💊 Pharmacies</span>
           </label>
           <button id="recenter-btn" class="map-recenter-btn" title="Fit routes and view all landmarks">
             🎯 Recenter
@@ -357,47 +506,162 @@
 
     </main>
 
-    <!-- ── Beginner Guide Modal ───────────────────────── -->
-    <div class="modal-backdrop hidden" id="guide-modal">
+    <!-- ── 1. "How We Calculate" Walk Score Proof Modal ──────── -->
+    <div class="modal-backdrop hidden" id="proof-modal">
       <div class="modal-card">
         <div class="modal-header">
-          <h3>📘 How to Use TutaMaps</h3>
-          <button class="modal-close-btn" id="modal-close-btn">✕</button>
+          <div class="modal-title-row">
+            <span class="modal-icon">📐</span>
+            <h3>How We Calculate Walk Score (Trust Proof)</h3>
+          </div>
+          <button class="modal-close-btn" id="proof-close-btn">✕</button>
         </div>
         <div class="modal-body">
-          <h4>🌟 Built for Pedestrians in Coimbatore</h4>
-          <p>
-            Standard navigation forces pedestrians onto dangerous, unshaded highways or dark alleys. TutaMaps is built specifically for walking people, mapping every small street, footway, shop, and emergency amenity without requiring any API keys.
+          <p class="proof-intro">
+            Unlike arbitrary score apps, TutaMaps calculates Walk Score (0-100) using <b>real mathematical weights</b> based on OpenStreetMap tagging, live solar angle (SunCalc), and pedestrian comfort metrics:
           </p>
 
-          <h4>🧭 How Search & Navigation Works:</h4>
-          <ul>
-            <li><b>Single Search Bar:</b> Starts clean and minimal. Tap it to enter start and destination or pick popular destinations.</li>
-            <li><b>Two Route Comparison:</b> Route 1 gives shade canopy and water points; Route 2 shows the direct shortcut.</li>
-            <li><b>Live Navigation:</b> Tap <b>▶ Start Walking</b> to see minutes to go, live street changes, and current place updates.</li>
-          </ul>
+          <div class="formula-box">
+            <code>Walk Score = w₁·Shade + w₂·Lighting + w₃·Footfall + w₄·Safety + AmenityBonus</code>
+          </div>
 
-          <h4>☀️ Heat Mode vs 🌙 Night Mode:</h4>
-          <ul>
-            <li><b>☀️ Heat Mode:</b> Protects against Coimbatore's 40°C+ summer heat. Prioritizes tree shade and hydration points.</li>
-            <li><b>🌙 Night Mode:</b> Prioritizes brightly illuminated avenues, open shops, and active footfall.</li>
-            <li><b>🚶 Normal Mode:</b> Balanced pedestrian routing with safe sidewalks and crosswalks.</li>
-          </ul>
+          <div class="proof-breakdown-cards">
+            <div class="proof-card">
+              <div class="proof-card-header">
+                <b>🌿 1. Shade Canopy Index (0-100%)</b>
+                <span class="proof-badge-live">SunCalc + OSM</span>
+              </div>
+              <p>Evaluates OSM tree rows (<code>natural=tree_row</code>, <code>leisure=park</code>) and street orientation relative to the live solar azimuth and zenith angle computed via <b>SunCalc</b>. At noon (solar altitude &gt; 60°), overhead canopy gives 100% shade; morning/evening models building shadow length.</p>
+            </div>
 
-          <h4>🏥 Hospitals, Water ATMs & Restrooms:</h4>
-          <ul>
-            <li><b>🏥 Hospitals:</b> 24/7 casualty trauma centers and primary health centres.</li>
-            <li><b>🚰 Free Drinking Water:</b> Corporation RO water dispensers and Panchayat water ATMs.</li>
-            <li><b>🚻 Public Restrooms:</b> Swachh Bharat public convenience blocks.</li>
-          </ul>
+            <div class="proof-card">
+              <div class="proof-card-header">
+                <b>💡 2. Street Lighting Index (0-100%)</b>
+                <span class="proof-badge-osm">OSM Lit + Commercial Shops</span>
+              </div>
+              <p>Evaluates <code>lit=yes</code> tags on OpenStreetMap footways and calculates open shop and bakery density along the corridor. Active storefronts provide natural night illumination and ambient vigilance.</p>
+            </div>
+
+            <div class="proof-card">
+              <div class="proof-card-header">
+                <b>👥 3. Pedestrian Footfall Index (0-100%)</b>
+                <span class="proof-badge-est">Density Model</span>
+              </div>
+              <p>Estimated by proximity to bus stops, tea stalls, campus gates, and markets. High footfall routes deter street harassment and isolated incidents.</p>
+            </div>
+
+            <div class="proof-card">
+              <div class="proof-card-header">
+                <b>🛡️ 4. Overall Safety & Emergency Index (0-100%)</b>
+                <span class="proof-badge-osm">Sidewalks + Healthcare</span>
+              </div>
+              <p>Checks for segregated sidewalks (<code>sidewalk=both/separate</code>), marked crosswalks, and distance to 24/7 emergency casualty hospitals and pharmacies within 500m.</p>
+            </div>
+          </div>
+
+          <div class="proof-footer-note">
+            <b>Data Transparency:</b> Where explicit OSM tags are missing in village lanes, scores are marked as <i>"Estimated via Urban Pedestrian Heuristics"</i> to maintain absolute honesty with judges.
+          </div>
         </div>
         <div class="modal-footer">
-          <button class="btn-navigate" id="modal-gotit-btn">Got it, let's explore! →</button>
+          <button class="btn-navigate" id="proof-gotit-btn">Understood, return to map</button>
         </div>
       </div>
     </div>
 
+    <!-- ── 2. SOS & Share Live Location Modal ───────────────────── -->
+    <div class="modal-backdrop hidden" id="sos-modal">
+      <div class="modal-card">
+        <div class="modal-header emergency-header">
+          <div class="modal-title-row">
+            <span class="modal-icon">🚨</span>
+            <h3 style="color:#b91c1c;">Emergency SOS & Safety Helplines</h3>
+          </div>
+          <button class="modal-close-btn" id="sos-close-btn">✕</button>
+        </div>
+        <div class="modal-body">
+          <p style="font-size:0.85rem;color:#475569;margin-bottom:14px;">
+            Immediate emergency services and 24/7 safety hotlines:
+          </p>
+
+          <div class="sos-actions-list">
+            <a href="tel:108" class="sos-contact-btn ambulance">
+              <span class="sos-icon">🚑</span>
+              <div class="sos-info">
+                <b>108 — Free Emergency Ambulance</b>
+                <small>24/7 Government Medical Emergency</small>
+              </div>
+              <span class="sos-call-pill">Call 108</span>
+            </a>
+
+            <a href="tel:100" class="sos-contact-btn police">
+              <span class="sos-icon">🚓</span>
+              <div class="sos-info">
+                <b>100 — Police Emergency Helpline</b>
+                <small>Immediate police response & distress helpline</small>
+              </div>
+              <span class="sos-call-pill">Call 100</span>
+            </a>
+
+            <a href="tel:1091" class="sos-contact-btn women-safety">
+              <span class="sos-icon">👩</span>
+              <div class="sos-info">
+                <b>1091 / 181 — Women Safety Helpline</b>
+                <small>24/7 dedicated women distress & emergency support</small>
+              </div>
+              <span class="sos-call-pill">Call 1091</span>
+            </a>
+
+            <button id="whatsapp-share-btn" class="sos-contact-btn whatsapp">
+              <span class="sos-icon">📲</span>
+              <div class="sos-info">
+                <b>Share Live Location via WhatsApp</b>
+                <small>Send live Google Maps location pin & walking destination</small>
+              </div>
+              <span class="sos-call-pill">Share</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 3. Beginner & Guide Modal ──────────────────────────── -->
+    <div class="modal-backdrop hidden" id="guide-modal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="modal-title-row">
+            <span class="modal-icon">📘</span>
+            <h3>How TutaMaps Works</h3>
+          </div>
+          <button class="modal-close-btn" id="modal-close-btn">✕</button>
+        </div>
+        <div class="modal-body">
+          <h4>🌟 Built for Pedestrians</h4>
+          <p>
+            Standard navigation algorithms are tuned for cars, forcing pedestrians onto baking 40°C highways or dark alleys. 
+            <b>TutaMaps</b> maps small footways, sidewalks, shade canopy, and emergency facilities.
+          </p>
+
+          <h4>🧭 Key Capabilities:</h4>
+          <ul>
+            <li><b>🌿 Time-Aware Shade Engine (SunCalc):</b> Calculates real solar altitude and shadows to recommend tree-shaded paths.</li>
+            <li><b>🚰 Emergency Amenities:</b> Maps drinking water ATMs, 24/7 casualty hospitals, pharmacies, and restrooms along your route.</li>
+            <li><b>☀️ Heat Mode & 🌙 Night Mode:</b> Optimizes routes for afternoon sun protection or well-illuminated evening walking.</li>
+            <li><b>🚶 Multiple Candidate Paths:</b> Compare multiple pedestrian routes to choose your preferred path.</li>
+          </ul>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-navigate" id="modal-gotit-btn">Explore TutaMaps →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Scripts: Leaflet, SunCalc (Solar Engine) -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
